@@ -1,0 +1,32 @@
+[
+    {
+        "Classe": "Libro",
+        "annoPubblicazione": "2007",
+        "autore": "Brian W. Kernighan",
+        "copieInPrestito": 0,
+        "copieTotali": 8,
+        "editore": "Pearson",
+        "genere": "Manuale",
+        "id": "1233",
+        "immagine": "/home/aldo/Scrivania/Biblioteca/resources/Il_Linguaggio_C.jpg",
+        "letto": false,
+        "lingua": "Italiano",
+        "numeroPagine": 297,
+        "titolo": "Il Lignuaggio C"
+    },
+    {
+        "Classe": "Libro",
+        "annoPubblicazione": "1827",
+        "autore": "Alessandro Manzoni",
+        "copieInPrestito": 0,
+        "copieTotali": 10,
+        "editore": "Bompiani",
+        "genere": "Romanzo Storico",
+        "id": "1234",
+        "immagine": "/home/aldo/Scrivania/Biblioteca/resources/Promessi_Sposi.jpg",
+        "letto": false,
+        "lingua": "Italiano",
+        "numeroPagine": 500,
+        "titolo": "I Promessi Sposi"
+    }
+]
