@@ -70,9 +70,9 @@ void VisitorWidget::visit(Biblioteca *biblio) {
     //Labmda che dinamicamente indica la disponibilità dell'articolo
     QLabel* disponibile = new QLabel([biblio]() {  // ← [media_fisico] non [&media_fisico]
         if (biblio && biblio->getDisponibilità())
-            return QString("✅ L'articolo è disponibile");
+            return QString("L'articolo è disponibile");
         else
-            return QString("❌ L'articolo non è disponibile");
+            return QString("L'articolo non è disponibile");
     }(), this);
 
     descrizioneLayout->addWidget(titolo);
@@ -99,9 +99,9 @@ void VisitorWidget::visit(Media_cartaceo* media_cartaceo) {
     QLabel* editore = new QLabel(QString("Editore: %1").arg(QString::fromStdString(media_cartaceo->getEditore())), this);
     QLabel* letto = new QLabel([media_cartaceo]() {  // ← Cattura per valore
         if (media_cartaceo && media_cartaceo->getLetto())
-            return QString("📖 L'articolo è già stato letto");
+            return QString("L'articolo è già stato letto");
         else
-            return QString("🔖 L'articolo è ancora da leggere");
+            return QString("L'articolo è ancora da leggere");
     }(), this);
 
     descrizioneLayout->addWidget(numero_pagine);

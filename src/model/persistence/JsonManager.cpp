@@ -1,6 +1,11 @@
 #include "JsonManager.h"
 #include "../observers/JsonObserver.h"
+
 #include <QDebug>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QFileInfo>
 #include <QDir>
 
@@ -13,96 +18,78 @@ void JsonManager::addObserver(JsonObserver* obs) {
 }
 
 void JsonManager::notifyObservers() {
+    // notifica tutti gli observer sulla lista observers
     for (auto* obs : observers)
         obs->onBibliotecaUpdated(bibliotecaList);
 }
 
-bool JsonManager::readJsonArray(QJsonArray& out) const {
-    qDebug() << "Loading JSON from:" << filePath;
+// Legge il file e lo traduce in QJsonArray e lo scrive su jsonArray
+bool JsonManager::readJsonArray(QJsonArray& jsonArray) const {
     QFile file(filePath);
 
-    if (!file.exists()) {
-        qDebug() << "[JsonManager] File non esistente, creo array vuoto";
-        out = QJsonArray();
-        return true;
-    }
-
     if(!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "[JsonManager] Impossibile aprire in lettura:" << filePath;
+        qWarning() << "Il file biblioteca.json non si apre";
         return false;
     }
+
     QByteArray data = file.readAll();
     file.close();
 
-    // Se il file è vuoto, restituisci array vuoto
-    if (data.isEmpty()) {
-        qDebug() << "[JsonManager] File vuoto, restituisco array vuoto";
-        out = QJsonArray();
-        return true;
-    }
-
     QJsonDocument doc = QJsonDocument::fromJson(data);
     if (!doc.isArray()) {
-        qWarning() << "[JsonManager] Documento non è un array JSON";
+        qWarning() << "Formato Json non valido in biblioteca.json";
         return false;
     }
 
-    out = doc.array();
+    jsonArray = doc.array();
     return true;
 }
 
 bool JsonManager::writeJsonArray(QJsonArray& in) const {
-    // Assicurati che la directory esista
-    QFileInfo fileInfo(filePath);
-    QDir dir = fileInfo.dir();
-    if (!dir.exists()) {
-        if (!dir.mkpath(".")) {
-            qWarning() << "[JsonManager] Impossibile creare directory:" << dir.path();
-            return false;
-        }
-    }
-
     QFile file(filePath);
-    if(!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        qWarning() << "[JsonManager] Impossibile aprire in scrittura:" << filePath;
+    if(!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Impossibile aprire biblioteca.json scrittura:";
         return false;
     }
 
+    // da QJson array a QJson document
     QJsonDocument doc(in);
-    const auto ok = file.write(doc.toJson()) != -1;
-    file.close();
-
-    if (!ok) {
-        qWarning() << "[JsonManager] Scrittura fallita";
-    } else {
-        qDebug() << "[JsonManager] File scritto correttamente:" << filePath;
-    }
-
-    return ok;
+    return true;
 }
 
 QList<Biblioteca*> JsonManager::loadBibliotecaListFromJson() {
     QList<Biblioteca*> out;
     QJsonArray arr;
+
+    // se la lettura non riesce, ritorna una lista vuota
     if (!readJsonArray(arr)) {
-        bibliotecaList = {};
-        notifyObservers();
-        return out;
+        qWarning() << "Lettura non riuscita";
+        return out = {};
     }
 
+    // itero il QJsonArray arr contenente i dati della mia biblioteca, per ogni elemento var ne ricava la classe (tradotta in stringa),
+    // in base ad essa sceglie il corretto loader
     for (const auto& val : arr) {
         const auto obj = val.toObject();
-        const auto cls = obj.value("Classe").toString();
+        const auto classe = obj.value("Classe").toString();
         Biblioteca* created = nullptr;
-        if (cls == "Libro") created = loadLibri(obj);
-        else qWarning() << "[JsonManager] Classe sconosciuta:" << cls;
 
-        if (created) out.append(created);
+        if (classe == "Libro")
+            created = loadLibri(obj);
+        // TO DO: aggiungere le classi
+
+        else qWarning() << "Classe sconosciuta:" << classe;
+
+        if (created)
+            out.append(created);
     }
+
     bibliotecaList = out;
     notifyObservers();
     return out;
 }
+
+// Elenco dei vari loader
 
 JsonManager::BibliotecaData JsonManager::loadBiblioteca(const QJsonObject& obj) const {
     BibliotecaData b;
@@ -127,7 +114,6 @@ JsonManager::MediaCartaceoData JsonManager::loadMediaCartaceo(const QJsonObject&
     return m;
 }
 
-//crea un oggetto libro dall'oggetto Json
 Biblioteca* JsonManager::loadLibri(const QJsonObject& obj) const {
     const auto b = loadBiblioteca(obj);
     const auto c = loadMediaCartaceo(obj);
@@ -139,6 +125,39 @@ Biblioteca* JsonManager::loadLibri(const QJsonObject& obj) const {
                      b.copieTotali, c.numeroPagine, c.editore.toStdString(),
                      autore.toStdString(), b.copieInPrestito, c.letto);
 }
+
+
+//operazione di salvataggio di un oggetto Biblioteca nella lista e scrittura nel file Json
+void JsonManager::saveNewObject(Biblioteca* b) {
+    bibliotecaList.append(b);
+    QJsonArray arr;
+
+    if(!readJsonArray(arr)) {
+        qWarning() << "Lettura di biblioteca.json non riuscita";
+        return;
+    }
+
+    QJsonObject obj;
+    // chiamata al giusto save che restituirà l'oggetto json da aggiungere al QJsonArray arr
+    // TODO aggiungere nuove classi
+    if (auto p = dynamic_cast<Libro*>(b)) {
+        obj = save(p);
+    } else {
+        qWarning() << "[JsonManager] Tipo non supportato in saveNewObject";
+        return;
+    }
+    arr.append(obj);
+
+    // viene riscritta la lista con il nuovo elemento
+    if (writeJsonArray(arr)) {
+        qDebug() << "Json array scritto con successo";
+        notifyObservers();
+    } else {
+        qWarning() << "Fallito nello scrivere il Json array";
+    }
+}
+
+
 
 //metodi dispatch di salvataggio: da oggetto Biblioteca ad oggetto Json
 void JsonManager::save(const Biblioteca* b, QJsonObject& obj) const {
@@ -158,51 +177,23 @@ void JsonManager::save(const Media_cartaceo* c, QJsonObject& obj) const {
     obj["letto"] = c->getLetto();
 }
 
+// ritorna l'oggetto Json da salvare completo
 QJsonObject JsonManager::save(const Libro* libro) const {
-    QJsonObject o; o["Classe"] = "Libro";
-    save(static_cast<const Biblioteca*>(libro), o);
-    save(static_cast<const Media_cartaceo*>(libro), o);
-
-    o["autore"] = QString::fromStdString(libro->getAutore());
-    return o;
-}
-
-
-//operazione di salvataggio di un oggetto Biblioteca nella lista Json
-void JsonManager::saveNewObject(Biblioteca* b) {
-    qDebug() << "saveNewObject called for:" << QString::fromStdString(b->getTitolo());
-
-    bibliotecaList.append(b);
-    qDebug() << "Added to bibliotecaList, now size:" << bibliotecaList.size();
-
-    QJsonArray arr;
-    if(!readJsonArray(arr)) {
-        qWarning() << "Failed to read JSON array";
-        return;
-    }
-
     QJsonObject obj;
-    if (auto p = dynamic_cast<Libro*>(b)) {
-        obj = save(p);
-        qDebug() << "Created JSON object for Libro";
-    } else {
-        qWarning() << "[JsonManager] Tipo non supportato in saveNewObject";
-        return;
-    }
+    obj["Classe"] = "Libro";
+    save(static_cast<const Biblioteca*>(libro), obj);
+    save(static_cast<const Media_cartaceo*>(libro), obj);
 
-    arr.append(obj);
-    qDebug() << "Added object to JSON array, new size:" << arr.size();
-
-    if (writeJsonArray(arr)) {
-        qDebug() << "JSON array written successfully";
-        notifyObservers();
-    } else {
-        qWarning() << "Failed to write JSON array";
-    }
+    obj["autore"] = QString::fromStdString(libro->getAutore());
+    return obj;
 }
+
+
+
+
 
 void JsonManager::deleteObject(Biblioteca* biblio) {
-    // Find the object to delete
+    //
     int index = -1;
     for (int i = 0; i < bibliotecaList.size(); ++i) {
         if(bibliotecaList[i] == biblio) {
@@ -212,26 +203,30 @@ void JsonManager::deleteObject(Biblioteca* biblio) {
     }
 
     if (index == -1) {
-        qWarning() << "[JsonManager] Object not found for deletion";
+        qWarning() << "L'oggetto da eliminare non è stato trovato";
         return;
     }
 
-    // Remove from memory list
+    // Rimuove l'elemento dalla lista e memorizzo il puntatore da deallocare
     Biblioteca* toDelete = bibliotecaList.takeAt(index);
 
-    // Update JSON file
+    // Lettura del QJsonArray
     QJsonArray arr;
     if (!readJsonArray(arr)) return;
 
+    // Rimozione dell'elemento dal QJsonArray
     if (index < arr.size()) {
         arr.removeAt(index);
         writeJsonArray(arr);
     }
 
-    // Delete the object from memory
+    // Dealloco il puntatore e notifico gli osservatori del cambiamento
     delete toDelete;
     notifyObservers();
 }
+
+
+
 
 void JsonManager::updateObject(Biblioteca* biblio) {
     int index = -1;
@@ -241,23 +236,32 @@ void JsonManager::updateObject(Biblioteca* biblio) {
             break;
         }
     }
-    QJsonArray arr;
-    if (!readJsonArray(arr)) return;
-    if (index >= arr.size()) {
-        qWarning() << "[JsonManager] Indice fuori range dal file";
+    if (index == -1) {
+        qWarning() << "L'Oggetto da aggiornare non è stato trovato";
         return;
     }
 
-    QJsonObject o;
-    if (auto p = dynamic_cast<Libro*>(biblio)) o = save(p);
+    QJsonArray arr;
+    if (!readJsonArray(arr)) return;
+
+    QJsonObject obj;
+    // dispatch del tipo di oggetto da aggiornare, viene chiamato il giusto save che ritorna il QJsonObject da aggiornare
+    if (auto p = dynamic_cast<Libro*>(biblio))
+        obj = save(p);
+    //TODO aggiungere classi
     else {
-        qWarning() << "[JsonManager] Tipo non supportato in updateObject";
+        qWarning() << "Tipo non supportato in updateObject";
         return;
     }
-    arr[index] = o;
+
+    //viene sovrascritto il vecchio elemento con quello aggiornato, riscritto l'array e notificati gli observers dell'operazione
+    arr[index] = obj;
     writeJsonArray(arr);
     notifyObservers();
 }
+
+
+
 
 void JsonManager::savePrenota(Biblioteca* biblio) {
     // Aggiorna solo Disponibile/Copie dell'occorrenza specifica

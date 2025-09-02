@@ -88,12 +88,12 @@ private:
         bool colorato;
     };
 
-    //helpers di caricamento
+    //caricamento
     BibliotecaData loadBiblioteca(const QJsonObject& obj) const;
     MediaCartaceoData loadMediaCartaceo(const QJsonObject& obj) const;
     Biblioteca* loadLibri(const QJsonObject& obj) const;
 
-    //helpers di salvataggio
+    //salvataggio
     void save(const Biblioteca* b, QJsonObject& obj) const;
     void save(const Media_cartaceo* c, QJsonObject& obj) const;
 
