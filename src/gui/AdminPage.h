@@ -15,6 +15,8 @@ protected:
 
 private:
     QPushButton* addButton;
+    QPushButton* saveButton;
+    QPushButton* loadButton;
 
 signals:
     void onEditMedia(Biblioteca* media);
@@ -22,9 +24,14 @@ signals:
     void createNewObject(Biblioteca* newMedia);
     void removeObject(Biblioteca* newMedia);
     void modifyObject(Biblioteca* newMedia);
+    void saveDataRequested(QString fileName);
+    void loadDataRequested(QString fileName);
 
 private slots:
     void onAddButtonClicked();
+    void onSaveButtonClicked();
+    void onLoadButtonClicked();
+
     void handleEditMedia(Biblioteca* media);
     void handleDeleteMedia(Biblioteca* media);
 

@@ -11,4 +11,5 @@ public:
     virtual ~Media_audio();
     virtual bool getAscoltato() const;
     virtual void setAscoltato(const bool&);
+    virtual void accept(Visitor* visitor) override;
 };

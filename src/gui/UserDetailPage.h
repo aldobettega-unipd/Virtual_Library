@@ -13,9 +13,6 @@ protected:
     void setupSpecificUI() override;
     void setupSpecificConnections() override;
 
-private slots:
-    void onBackClicked();
-
 };
 
 #endif // USERDETAILPAGE_H

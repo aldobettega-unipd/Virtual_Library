@@ -23,3 +23,7 @@ void Media_video::setRegista(const string& r) {
 void Media_video::setGuardato(const bool& b) {
     guardato = b;
 }
+
+void Media_video::accept(Visitor* visitor) {
+    visitor->visit(this);
+}

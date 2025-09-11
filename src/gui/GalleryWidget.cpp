@@ -1,169 +1,185 @@
 #include "GalleryWidget.h"
-#include "MediaBox.h"
-#include "../model/media/media_cartaceo.h"
+#include "MediaCategorySection.h"
 #include "../model/media/libro.h"
+#include "../model/media/periodico.h"
+#include "../model/media/media_video.h"
+#include "../model/media/cd.h"
 
-#include <QMap>
-#include <QVariant>
-#include <QLayoutItem>
 #include <QDebug>
 
+GalleryWidget::GalleryWidget(bool isAdmin, QWidget* parent)
+    : QScrollArea(parent), adminMode(isAdmin)
+{
+    setupUI();
+    initializeSections();
+}
 
-
-GalleryWidget::GalleryWidget(bool isAdmin, QWidget* parent) : QScrollArea(parent), adminMode(isAdmin) {
+void GalleryWidget::setupUI() {
     containerWidget = new QWidget(this);
-    gridLayout = new QGridLayout(containerWidget);
-    gridLayout->setSpacing(10);
-    gridLayout->setContentsMargins(10, 10, 10, 10);
+    containerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
+    mainLayout = new QVBoxLayout(containerWidget);
+    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(10, 10, 10, 20);
+
+    // Configurazione scroll area principale (verticale)
     setWidget(containerWidget);
     setWidgetResizable(true);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    setMinimumWidth(800);
+    setMinimumHeight(600);
+}
+
+void GalleryWidget::initializeSections() {
+    auto categoryConfigs = getCategoryConfigs();
+
+    QList<QPair<int, QString>> orderedCategories;
+    for (auto it = categoryConfigs.begin(); it != categoryConfigs.end(); ++it) {
+        orderedCategories.append({it.value().order, it.key()});
+    }
+
+    std::sort(orderedCategories.begin(), orderedCategories.end());
+
+    for (const auto& pair : orderedCategories) {
+        const QString& categoryKey = pair.second;
+        const CategoryConfig& config = categoryConfigs[categoryKey];
+
+        MediaCategorySection* section = new MediaCategorySection(
+            config.displayName,
+            config.icon,
+            containerWidget
+            );
+
+        categorySections[categoryKey] = section;
+        mainLayout->addWidget(section);
+
+        qDebug() << "Created section for:" << categoryKey << "(" << config.displayName << ")";
+    }
+
+    // Spazio finale per layout
+    mainLayout->addStretch();
+
+    connectSectionSignals();
+}
+
+void GalleryWidget::connectSectionSignals() {
+    // Connetti tutti i segnali delle sezioni
+    for (auto* section : categorySections.values()) {
+        connect(section, &MediaCategorySection::mediaClicked,
+                this, &GalleryWidget::onMediaClicked);
+    }
+}
+
+QMap<QString, GalleryWidget::CategoryConfig> GalleryWidget::getCategoryConfigs() {
+    static QMap<QString, CategoryConfig> configs = {
+        {"Libro", {"Libri", "📚", 1}},
+        {"Periodico", {"Periodici", "📰", 2}},
+        {"Media_video", {"Video", "🎬", 3}},
+        {"Cd", {"Audio", "🎵", 4}}
+    };
+    return configs;
 }
 
 void GalleryWidget::setMediaData(const QList<Biblioteca*>& data) {
+    qDebug() << "GalleryWidget: Setting media data, count:" << data.size();
+
     allMediaData = data;
-    filteredMediaData = data;
-    refreshGallery();
+    redistributeMediaByCategory();
+}
+
+void GalleryWidget::redistributeMediaByCategory() {
+    // Raggruppa i media per categoria
+    QMap<QString, QList<Biblioteca*>> mediaByCategory;
+
+    for (Biblioteca* media : allMediaData) {
+        QString category = getMediaCategory(media);
+        mediaByCategory[category].append(media);
+
+        qDebug() << "Media:" << QString::fromStdString(media->getTitolo())
+                 << "-> Category:" << category;
+    }
+
+    // Assegna i dati alle sezioni appropriate
+    for (auto it = mediaByCategory.begin(); it != mediaByCategory.end(); ++it) {
+        const QString& category = it.key();
+        const QList<Biblioteca*>& mediaList = it.value();
+
+        if (categorySections.contains(category)) {
+            categorySections[category]->setMediaData(mediaList);
+            qDebug() << "Assigned" << mediaList.size() << "items to" << category << "section";
+        } else {
+            qWarning() << "No section found for category:" << category;
+        }
+    }
+
+    // Assicurati che le sezioni senza media siano vuote
+    for (auto* section : categorySections.values()) {
+        QString sectionCategory;
+        // Trova la categoria di questa sezione
+        for (auto it = categorySections.begin(); it != categorySections.end(); ++it) {
+            if (it.value() == section) {
+                sectionCategory = it.key();
+                break;
+            }
+        }
+
+        if (!mediaByCategory.contains(sectionCategory)) {
+            section->clearMedia();
+        }
+    }
+
+    updateAllSections();
+}
+
+QString GalleryWidget::getMediaCategory(Biblioteca* media) const {
+    // Determina la categoria basandosi sul tipo di oggetto
+    if (dynamic_cast<Libro*>(media)) {
+        return "Libro";
+    } else if (dynamic_cast<Periodico*>(media)) {
+        return "Periodico";
+    } else if (dynamic_cast<Media_video*>(media)) {
+        return "Media_video";
+    } else if (dynamic_cast<Cd*>(media)) {
+        return "Cd";
+    }
+
+    qWarning() << "Unknown media type for:" << QString::fromStdString(media->getTitolo());
+    return "Unknown";
 }
 
 void GalleryWidget::filterByText(const QString& text) {
-    filteredMediaData.clear();
-
-    for (auto* media : allMediaData) {
-        QString searchStr = text.toLower();
-        QString titolo = QString::fromStdString(media->getTitolo()).toLower();
-        QString genere = QString::fromStdString(media->getGenere());
-
-        if (titolo.contains(searchStr) || genere.contains(searchStr)) {
-            filteredMediaData.append(media);
-        }
-    }
-    refreshGallery();
+    currentSearchText = text;
+    updateAllSections();
 }
 
 void GalleryWidget::applyFilters(const QMap<QString, QVariant>& filters) {
-    filteredMediaData.clear();
+    currentFilters = filters;
 
-    for (auto* media : allMediaData) {
-        if (matchesFilters(media, "", filters)) {
-            filteredMediaData.append(media);
-        }
+    // Estrai il testo di ricerca se presente nei filtri
+    if (filters.contains("searchText")) {
+        currentSearchText = filters.value("searchText").toString();
     }
 
-    refreshGallery();
+    updateAllSections();
+}
+
+void GalleryWidget::updateAllSections() {
+    qDebug() << "GalleryWidget: Updating all sections with search:" << currentSearchText;
+
+    // Applica filtri a tutte le sezioni
+    for (auto* section : categorySections.values()) {
+        section->applyFilters(currentSearchText, currentFilters);
+    }
 }
 
 void GalleryWidget::refreshGallery() {
-    qDebug() << "Refreshing gallery, admin mode:" << adminMode << ", items:" << filteredMediaData.size();
-
-    // Clean existing layout
-    QLayoutItem* item;
-    while ((item = gridLayout->takeAt(0)) != nullptr) {
-        if (item->widget()) {
-            item->widget()->deleteLater();
-        }
-        delete item;
-    }
-
-    // Add new elements
-    int row = 0, col = 0;
-    const int columns = 4;
-
-    for (auto* media : filteredMediaData) {
-        // NULL CHECK - crucial!
-        if (!media) {
-            qWarning() << "Null media pointer in filteredMediaData!";
-            continue;
-        }
-
-        MediaBox* mediaBox = nullptr;
-        try {
-            mediaBox = new MediaBox(media, containerWidget);
-            connect(mediaBox, &MediaBox::clicked, this, &GalleryWidget::mediaClicked);
-
-            if (mediaBox)
-                gridLayout->addWidget(mediaBox, row, col);
-
-        } catch (const std::exception& e) {
-            qCritical() << "Error creating MediaBox:" << e.what();
-            continue;
-        }
-
-        col++;
-        if (col >= columns) {
-            col = 0;
-            row++;
-        }
-    }
+    // Manteniamo questo metodo per compatibilità
+    redistributeMediaByCategory();
 }
 
-bool GalleryWidget::matchesFilters(Biblioteca* media, const QString& text,
-                                   const QMap<QString, QVariant>& filters) const {
-    //filtro per il testo
-    if (!text.isEmpty()) {
-        QString searchStr = text.toLower();
-        QString titolo = QString::fromStdString(media->getTitolo()).toLower();
-        QString genere = QString::fromStdString(media->getGenere()).toLower();
-
-        if (!titolo.contains(searchStr) && !genere.contains(searchStr))
-            return false;
-    }
-
-    for (auto it = filters.begin(); it != filters.end(); ++it) {
-        const QString& key = it.key();
-        const QVariant& value = it.value();
-
-        if (key == "anno") {
-            QString annoPubblicazione = QString::fromStdString(media->getAnnoPubblicazione());
-            bool ok;
-            int anno = annoPubblicazione.toInt(&ok);
-
-            if(ok) {
-                QString range = value.toString();
-                if (range == "2000-oggi" && anno < 2000) return false;
-                else if (range == "1900-1999" && (anno < 1900 || anno > 1999)) return false;
-                else if (range == "1800-1899" && (anno < 1800 || anno > 1899)) return false;
-                else if (range == "1700-1799" && (anno < 1700 || anno > 1799)) return false;
-                else if (range == "prima-1700" && anno >= 1700) return false;
-
-            }
-        } else if (key == "autore") {
-            if (auto libro = dynamic_cast<Libro*>(media)) {
-                if (!QString::fromStdString(libro->getAutore()).contains(value.toString(), Qt::CaseInsensitive))
-                    return false;
-            }
-        } else if (key == "genere") {
-            if (!QString::fromStdString(media->getGenere()).contains(value.toString(), Qt::CaseInsensitive))
-                return false;
-        } else if (key == "disponibile") {
-            if (!media->getDisponibilità()) return false;
-        }
-
-
-
-        if (key == "solo_non_letti" && value.toBool()) {
-            if (auto cartaceo = dynamic_cast<Media_cartaceo*>(media)) {
-                if (cartaceo->getLetto()) return false;
-            }
-        }
-        else if (key == "solo_disponibili" && value.toBool()) {
-            if (!media->getDisponibilità()) return false;
-        }
-        else if (key == "genere" && value.toString() != "Tutti") {
-            QString genereMedia = QString::fromStdString(media->getGenere());
-            if (genereMedia != value.toString()) return false;
-        }
-    }
-
-    return true;
+void GalleryWidget::onMediaClicked(Biblioteca* media) {
+    qDebug() << "GalleryWidget: Media clicked:" << QString::fromStdString(media->getTitolo());
+    emit mediaClicked(media);
 }
-
-
-
-
-
-
-
-

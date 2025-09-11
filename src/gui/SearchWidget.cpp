@@ -1,6 +1,7 @@
 #include "SearchWidget.h"
 #include <QLabel>
 #include <QCheckBox>
+#include <QGroupBox>
 
 SearchWidget::SearchWidget(QWidget* parent) : QWidget(parent) {
     setupUI();
@@ -8,99 +9,122 @@ SearchWidget::SearchWidget(QWidget* parent) : QWidget(parent) {
 }
 
 void SearchWidget::setupUI() {
-    layout = new QVBoxLayout(this);
+    QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
     // barra di ricerca
     searchBar = new QLineEdit(this);
     searchBar->setPlaceholderText("CERCA UNA RISORSA");
-    layout->addWidget(searchBar);
+    mainLayout->addWidget(searchBar);
 
-    //filtri
-    filterBox = new QWidget(this);
-    QVBoxLayout* filterLayout = new QVBoxLayout(filterBox);
+    searchButton = new QPushButton(" Cerca", this);
+    resetButton = new QPushButton("↻ Reset", this);
+    mainLayout->addWidget(searchButton);
+    mainLayout->addWidget(resetButton);
+
+    QGroupBox* filterGroup = new QGroupBox("Filtri", this);
+    formLayout = new QFormLayout(filterGroup);
 
     // filtri anno
-    QLabel* label_anno = new QLabel("Anno di pubblicazione", filterBox);
-    box2000oggi = new QCheckBox("2000 - oggi", filterBox);
-    box1900 = new QCheckBox("1900 - 1999", filterBox);
-    box1800 = new QCheckBox("1800 - 1899", filterBox);
-    box1700 = new QCheckBox("1700 - 1799", filterBox);
-    boxPrima1700 = new QCheckBox("fino al 1700", filterBox);
+    QWidget* annoWidget = new QWidget(filterGroup);
+    QVBoxLayout* annoLayout = new QVBoxLayout(annoWidget);
+    annoLayout->setSpacing(2);
+    annoLayout->setContentsMargins(0, 0, 0, 0);
 
-    // filtri autore e genere
-    QLabel* label_autore = new QLabel("Autore", filterBox);
-    autoreEdit = new QLineEdit(filterBox);
-    autoreEdit->setPlaceholderText("Filtra per autore...");
+    box2000oggi = new QCheckBox("2000 - oggi", annoWidget);
+    box1900 = new QCheckBox("1900 - 1999", annoWidget);
+    box1800 = new QCheckBox("1800 - 1899", annoWidget);
+    box1700 = new QCheckBox("1700 - 1799", annoWidget);
+    boxPrima1700 = new QCheckBox("fino al 1700", annoWidget);
 
-    QLabel* label_genere = new QLabel("Genere", filterBox);
-    genereEdit = new QLineEdit(filterBox);
-    genereEdit->setPlaceholderText("Filtra per genere...");
+    annoLayout->addWidget(box2000oggi);
+    annoLayout->addWidget(box1900);
+    annoLayout->addWidget(box1800);
+    annoLayout->addWidget(box1700);
+    annoLayout->addWidget(boxPrima1700);
 
-    disponibileCheck = new QCheckBox("Solo disponibili", filterBox);
+    formLayout->addRow("Anno di pubblicazione:", annoWidget);
 
-    filterLayout->addWidget(label_anno);
-    filterLayout->addWidget(box2000oggi);
-    filterLayout->addWidget(box1900);
-    filterLayout->addWidget(box1800);
-    filterLayout->addWidget(box1700);
-    filterLayout->addWidget(boxPrima1700);
-    filterLayout->addWidget(label_autore);
-    filterLayout->addWidget(autoreEdit);
-    filterLayout->addWidget(label_genere);
-    filterLayout->addWidget(genereEdit);
-    filterLayout->addWidget(disponibileCheck);
+    // Filtro autore
+    linguaEdit = new QLineEdit(filterGroup);
+    linguaEdit->setPlaceholderText("Inserisci lingua...");
+    formLayout->addRow("Lingua:", linguaEdit);
 
+    // Filtro genere
+    genereEdit = new QLineEdit(filterGroup);
+    genereEdit->setPlaceholderText("Inserisci genere...");
+    formLayout->addRow("Genere:", genereEdit);
 
-    filterBox->setLayout(filterLayout);
+    // Filtro disponibilità
+    disponibileCheck = new QCheckBox("Solo disponibili", filterGroup);
+    formLayout->addRow("Disponibilità:", disponibileCheck);
 
-    layout->addWidget(filterBox);
+    filterGroup->setLayout(formLayout);
+    mainLayout->addWidget(filterGroup);
+
+    // Imposta margini e spaziatura
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+    mainLayout->setSpacing(10);
+    formLayout->setSpacing(8);
+    formLayout->setContentsMargins(10, 15, 10, 15);
 }
 
 void SearchWidget::setupConnections() {
-    connect(searchBar, &QLineEdit::textChanged, this, &SearchWidget::onSearchTextChanged);
+    connect(searchButton, &QPushButton::clicked, this, &SearchWidget::onSearchButtonClicked);
 
-    connect(box2000oggi, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
-    connect(box1900, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
-    connect(box1800, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
-    connect(box1700, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
-    connect(boxPrima1700, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
+    connect(resetButton, &QPushButton::clicked, this, &SearchWidget::onResetButtonClicked);
 
-    connect(autoreEdit, &QLineEdit::textChanged, this, &SearchWidget::onFiltersChanged);
-    connect(genereEdit, &QLineEdit::textChanged, this, &SearchWidget::onFiltersChanged);
-
-    connect(disponibileCheck, &QCheckBox::stateChanged, this, &SearchWidget::onFiltersChanged);
+    connect(searchBar, &QLineEdit::returnPressed, this, &SearchWidget::onSearchButtonClicked);
 }
 
-void SearchWidget::onSearchTextChanged(const QString& text) {
-    emit searchTextChanged(text);
-}
-
-void SearchWidget::onFiltersChanged() {
+void SearchWidget::onSearchButtonClicked() {
+    QString searchText = searchBar->text();
     QMap<QString, QVariant> filters;
-
-    // filtro anno
-    if (box2000oggi->isChecked()) filters["anno"] = "2000-oggi";
-    else if (box1900->isChecked()) filters["anno"] = "1900-1999";
-    else if (box1800->isChecked()) filters["anno"] = "1800-1899";
-    else if (box1700->isChecked()) filters["anno"] = "1700-1799";
-    else if (boxPrima1700->isChecked()) filters["anno"] = "prima-1700";
-
-    // filtro autore
-    if (!autoreEdit->text().isEmpty()) {
-        filters["autore"] = autoreEdit->text();
+    if (!searchText.isEmpty()) {
+        filters["searchText"] = searchText;
     }
 
-    // filtro genere
-    if (!genereEdit->text().isEmpty()) {
-        filters["genere"] = genereEdit->text();
+    QStringList anniSelezionati;
+    if (box2000oggi->isChecked()) anniSelezionati.append("2000-oggi");
+    if (box1900->isChecked()) anniSelezionati.append("1900-1999");
+    if (box1800->isChecked()) anniSelezionati.append("1800-1899");
+    if (box1700->isChecked()) anniSelezionati.append("1700-1799");
+    if (boxPrima1700->isChecked()) anniSelezionati.append("prima-1700");
+
+    // Se almeno un anno è selezionato, applica il filtro
+    if (!anniSelezionati.isEmpty()) {
+        filters["anni"] = anniSelezionati;
     }
 
-    // filtro disponibilità
-    if (!disponibileCheck->isChecked()) {
-        filters["disponibile"] = false;
+    if (!linguaEdit->text().trimmed().isEmpty()) {
+        filters["lingua"] = linguaEdit->text().trimmed();
+    }
+
+    if (!genereEdit->text().trimmed().isEmpty()) {
+        filters["genere"] = genereEdit->text().trimmed();
+    }
+
+    if (disponibileCheck->isChecked()) {
+        filters["solo_disponibili"] = true;
     }
 
     emit filtersChanged(filters);
+}
+
+void SearchWidget::onResetButtonClicked() {
+    // Reset tutti i campi
+    searchBar->clear();
+    box2000oggi->setChecked(false);
+    box1900->setChecked(false);
+    box1800->setChecked(false);
+    box1700->setChecked(false);
+    boxPrima1700->setChecked(false);
+    linguaEdit->clear();
+    genereEdit->clear();
+    disponibileCheck->setChecked(false);
+
+    // Emetti segnali per resettare la gallery
+    emit searchTextChanged("");
+    emit filtersChanged(QMap<QString, QVariant>());
 }
 
 

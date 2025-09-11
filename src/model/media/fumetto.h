@@ -8,9 +8,9 @@ private:
     string disegnatore;
     bool colorato;
 public:
-    Fumetto(string titolo, string annoPubblicazione, string id, string genere, string immagine, int copieTotali, int numeroPagine,
-        string lingua, string editore, string autore, int numeroVolume, string nomeSaga, string disegnatore,
-        bool colorato, int copieInPrestito=0, bool letto=false);
+    Fumetto(string titolo, string annoPubblicazione, string id, string genere, string immagine, string lingua, int copieTotali,
+            int numeroPagine, string editore, string autore, int numeroVolume, string nomeSaga, string disegnatore, bool colorato,
+            int copieInPrestito=0, bool letto=false);
     virtual ~Fumetto();
     virtual int getNumeroVolume() const;
     virtual string getNomeSaga() const;

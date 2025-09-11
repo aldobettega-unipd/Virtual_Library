@@ -6,7 +6,7 @@ using namespace std;
 Biblioteca::Biblioteca(string titolo, string annoPubblicazione, string id, string genere, string immagine, string lingua, int copieTotali,
                        int copieInPrestito):
     titolo(titolo), annoPubblicazione(annoPubblicazione), id(id), genere(genere), immagine(immagine), lingua(lingua), copieTotali(copieTotali),
-    copieInPrestito(copieInPrestito)
+    copieInPrestito(copieInPrestito), disponibile(copieInPrestito < copieTotali)
 {}
 
 Biblioteca::~Biblioteca() {}
@@ -43,7 +43,7 @@ int Biblioteca::getCopieInPrestito() const {
     return copieInPrestito;
 }
 
-bool Biblioteca::getDisponibilità() const {
+bool Biblioteca::getDisponibilita() const {
     return disponibile;
 }
 
@@ -79,14 +79,15 @@ void Biblioteca::setCopieInPrestito(const int& c) {
     copieInPrestito = c;
 }
 
-void Biblioteca::setDisponibilità(const bool& d) {
+void Biblioteca::setDisponibilita(const bool& d) {
     disponibile = d;
 }
 
 void Biblioteca::restituisci() {
-    copieInPrestito -= 1;
-    if (disponibile == false)
-        setDisponibilità(true);
+    if (copieInPrestito <= 0)
+        throw runtime_error("Nessuna copia da restituire");
+    copieInPrestito--;
+    disponibile = true;
 }
 
 void Biblioteca::preleva() {
@@ -94,7 +95,7 @@ void Biblioteca::preleva() {
         throw runtime_error("Nessuna copia disponibile");
     copieInPrestito += 1;
     if (copieInPrestito == copieTotali)
-        setDisponibilità(false);
+        setDisponibilita(false);
 }
 
 

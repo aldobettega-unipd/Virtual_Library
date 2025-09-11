@@ -16,12 +16,21 @@ public:
         int numeroPagine, string editore, Periodo periodo, Diffusione diffusione, int numeroArticoli, string data, 
         int copieInPrestito=0, bool letto=false);
     virtual ~Periodico();
-    string periodoToString() const;
-    string diffusioneToString() const;
+    Periodo getPeriodo() const;
+    Diffusione getDiffusione() const;
     int getNumeroArticoli() const;
     string getData() const;
+
+    string periodoToString() const;
+    string diffusioneToString() const;
+
     void setPeriodo(const Periodo&);
     void setDiffusione(const Diffusione&);
     void setNumeroArticoli(const int&);
     void setData(const string&);
+
+    static Periodo stringToPeriodo(const std::string& str);
+    static Diffusione stringToDiffusione(const std::string& str);
+
+    virtual void accept(Visitor* visitor) override;
 };

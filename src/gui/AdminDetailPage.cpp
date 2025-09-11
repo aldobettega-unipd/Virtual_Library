@@ -3,7 +3,6 @@
 #include <QMessageBox>
 
 #include "../model/media/biblioteca.h"
-#include "EditMediaDialog.h"
 
 AdminDetailPage::AdminDetailPage(QWidget* parent) : BaseDetailPage(parent), editButton(nullptr), deleteButton(nullptr) {
     setupSpecificUI();
@@ -27,12 +26,7 @@ void AdminDetailPage::setupSpecificConnections() {
 void AdminDetailPage::onEditClicked() {
     if (!currentMedia) return;
 
-    EditMediaDialog dialog(currentMedia, this);
-    if (dialog.exec() == QDialog::Accepted) {
-        // Il media è stato aggiornato nel dialog
-        refreshDisplay(); // Aggiorna la visualizzazione con i nuovi dati
-        emit editRequested(currentMedia);
-    }
+    emit editRequested(currentMedia);
 }
 
 void AdminDetailPage::onDeleteClicked() {

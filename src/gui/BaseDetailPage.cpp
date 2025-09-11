@@ -32,12 +32,31 @@ void BaseDetailPage::setupCommonUI() {
 
     scrollArea->setWidget(contentArea);
 
+    // Bottom pulsantiera
+    prenota = new QPushButton("Prenota", this);
+    restituisci = new QPushButton("Restituisci", this);
+    pulsantiLayout = new QHBoxLayout();
+    pulsantiLayout->addWidget(prenota);
+    pulsantiLayout->addWidget(restituisci);
+
     mainLayout->addWidget(headerWidget);
     mainLayout->addWidget(scrollArea);
+    mainLayout->addLayout(pulsantiLayout);
 }
 
 void BaseDetailPage::setupCommonConnections() {
     connect(backButton, &QPushButton::clicked, this, &BaseDetailPage::onBackClicked);
+    connect(prenota, &QPushButton::clicked, this, [this]() {
+        if (currentMedia) {
+            emit prenotaRequested(currentMedia);
+        }
+    });
+
+    connect(restituisci, &QPushButton::clicked, this, [this]() {
+        if (currentMedia) {
+            emit restituisciRequested(currentMedia);
+        }
+    });
 }
 
 void BaseDetailPage::setMediaData(Biblioteca* media) {

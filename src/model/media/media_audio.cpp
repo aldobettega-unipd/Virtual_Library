@@ -14,3 +14,7 @@ bool Media_audio::getAscoltato() const {
 void Media_audio::setAscoltato(const bool& a) {
     ascoltato = a;
 }
+
+void Media_audio::accept(Visitor* visitor) {
+    visitor->visit(this);
+}

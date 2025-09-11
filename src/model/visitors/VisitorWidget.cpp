@@ -1,45 +1,48 @@
 #include "VisitorWidget.h"
 /*
-#include "../media/media_video.h"
-#include "../media/serie_tv.h"
-#include "../media/cd.h"
 #include "../media/audiolibro.h"
-#include "../media/periodico.h"
 */
+#include "../media/media_video.h"
+#include "../media/cd.h"
+#include "../media/periodico.h"
 #include "../media/libro.h"
-//#include "../media/fumetto.h"
 
 #include <QPushButton>
 
 VisitorWidget::VisitorWidget(QWidget* parent) :
-    QWidget(parent), widget(new QWidget(this)), mainLayout(new QHBoxLayout(widget)), leftContainerLayout(new QVBoxLayout),
-    image(new QLabel), pulsantieraLayout(new QHBoxLayout), descrizioneLayout(new QVBoxLayout)
+    QWidget(parent), widget(new QWidget(this)), mainLayout(new QHBoxLayout(widget)), image(new QLabel),
+    descrizioneContainer(new QWidget(widget)), descrizioneLayout(new QFormLayout(descrizioneContainer))
 {
-
-    leftContainerLayout->addWidget(image);
-    leftContainerLayout->addLayout(pulsantieraLayout);
-
-    mainLayout->addLayout(leftContainerLayout);
+    mainLayout->addWidget(image);
     mainLayout->addLayout(descrizioneLayout);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
+    mainLayout->addWidget(image, 1);
+    mainLayout->addWidget(descrizioneContainer, 1);
+    descrizioneContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    image->setAlignment(Qt::AlignCenter);
+    image->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    image->setMinimumSize(200, 300);
+    image->setStyleSheet("QLabel { border: 1px solid #ccc; background: #f0f0f0; }");
+
+    descrizioneLayout->setSpacing(10);
+    descrizioneLayout->setContentsMargins(10, 10, 10, 10);
+    descrizioneContainer->setStyleSheet("QLabel { font-size: 14pt; }");
 }
 
 QWidget* VisitorWidget::getWidget() const{
     return widget;
 }
 
+
 // Implementazione dei visit
 
 void VisitorWidget::visit(Biblioteca *biblio) {
     if (!biblio) return;
-    // Pulizia SOLO della descrizione e della pulsantiera
+    // Pulizia della descrizione e della pulsantiera
     QLayoutItem* child;
     while ((child = descrizioneLayout->takeAt(0)) != nullptr) {
-        if (child->widget()) {
-            child->widget()->deleteLater();
-        }
-        delete child;
-    }
-    while ((child = pulsantieraLayout->takeAt(0)) != nullptr) {
         if (child->widget()) {
             child->widget()->deleteLater();
         }
@@ -48,99 +51,108 @@ void VisitorWidget::visit(Biblioteca *biblio) {
     // Setup immagine
     QString imagePath = QString::fromStdString(biblio->getImmagine());
     QPixmap pixmap(imagePath);
-    image->setPixmap(pixmap.scaled(200, 200, Qt::KeepAspectRatio));
-    image->setAlignment(Qt::AlignCenter);
-    image->setFixedSize(120, 160);
-    image->setStyleSheet("border: 1px solid #ccc; background: #f0f0f0;");
-
-    //aggiunta di tasti alla pulsantiera
-    QPushButton* prenota = new QPushButton("Prenota", this);
-    QPushButton* restituisci = new QPushButton("Restituisci", this);
-    pulsantieraLayout->addWidget(prenota);
-    pulsantieraLayout->addWidget(restituisci);
+    if (!pixmap.isNull()) {
+        image->setPixmap(pixmap.scaled(image->width(), image->height(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    } else {
+        image->setText("🖼️\nImmagine non disponibile");
+        image->setAlignment(Qt::AlignCenter);
+    }
 
     // Descrizione
-    QLabel* titolo = new QLabel(QString("Titolo: %1").arg(QString::fromStdString(biblio->getTitolo())), this);
-    QLabel* annoPubblicazione = new QLabel(
-        QString("Anno di Pubblicazione: %1").arg(QString::fromStdString(biblio->getAnnoPubblicazione())), this);
-    QLabel* id = new QLabel(QString("Id: %1").arg(QString::fromStdString(biblio->getId())), this);
-    QLabel* genere = new QLabel(QString("Genere: %1").arg(QString::fromStdString(biblio->getGenere())), this);
-    QLabel* lingua = new QLabel(QString("Lingua: %1").arg(QString::fromStdString(biblio->getLingua())), this);
-    QLabel* copieTotali = new QLabel(QString("Copie totali: %1").arg((biblio->getCopieTotali())), this);
-    //Labmda che dinamicamente indica la disponibilità dell'articolo
-    QLabel* disponibile = new QLabel([biblio]() {  // ← [media_fisico] non [&media_fisico]
-        if (biblio && biblio->getDisponibilità())
-            return QString("L'articolo è disponibile");
-        else
-            return QString("L'articolo non è disponibile");
-    }(), this);
+    descrizioneLayout->addRow("Titolo:", new QLabel(QString::fromStdString(biblio->getTitolo())));
+    descrizioneLayout->addRow("Anno Pubblicazione:", new QLabel(QString::fromStdString(biblio->getAnnoPubblicazione())));
+    descrizioneLayout->addRow("Genere:", new QLabel(QString::fromStdString(biblio->getGenere())));
+    descrizioneLayout->addRow("Lingua:", new QLabel(QString::fromStdString(biblio->getLingua())));
+    descrizioneLayout->addRow("Id: ", new QLabel(QString::fromStdString(biblio->getId())));
 
-    descrizioneLayout->addWidget(titolo);
-    descrizioneLayout->addWidget(annoPubblicazione);
-    descrizioneLayout->addWidget(id);
-    descrizioneLayout->addWidget(genere);
-    descrizioneLayout->addWidget(lingua);
-    descrizioneLayout->addWidget(copieTotali);
-    descrizioneLayout->addWidget(disponibile);
+    QLabel* statusLabel = new QLabel();
+    int copieDisponibili = biblio->getCopieTotali() - biblio->getCopieInPrestito();
+    if (copieDisponibili > 0) {
+        // Se ci sono copie, mostra quante e usa il colore verde
+        statusLabel->setText(QString("Disponibile (%1)").arg(copieDisponibili));
+        statusLabel->setStyleSheet("color: green; font-weight: bold;");
+    } else {
+        // Altrimenti, mostra non disponibile in rosso
+        statusLabel->setText("Non disponibile");
+        statusLabel->setStyleSheet("color: red; font-weight: bold;");
+    }
 
+    descrizioneLayout->addRow("Disponibilità:", statusLabel);
 }
 
-/*
-void VisitorWidget::visit(Multimedia* multimedia) {
 
-}*/
+void VisitorWidget::visit(Multimedia* multimedia) {
+    //chiamata del visit padre
+    visit(static_cast<Biblioteca*>(multimedia));
+
+    descrizioneLayout->addRow("Supporto tecnologico: ", new QLabel(QString::fromStdString(multimedia->getSupportoTecnologico())));
+    descrizioneLayout->addRow("Casa di produzione: ", new QLabel(QString::fromStdString(multimedia->getCasaDiProduzione())));
+    descrizioneLayout->addRow("Durata: ", new QLabel(QString::number(multimedia->getDurata())));
+}
 
 void VisitorWidget::visit(Media_cartaceo* media_cartaceo) {
     //chiamata del visit padre
     visit(static_cast<Biblioteca*>(media_cartaceo));
 
     // Aggiunta a Descrizione
-    QLabel* numero_pagine = new QLabel(QString("Numero di pagine: %1").arg((media_cartaceo->getNumeroPagine())), this);
-    QLabel* editore = new QLabel(QString("Editore: %1").arg(QString::fromStdString(media_cartaceo->getEditore())), this);
-    QLabel* letto = new QLabel([media_cartaceo]() {  // ← Cattura per valore
-        if (media_cartaceo && media_cartaceo->getLetto())
-            return QString("L'articolo è già stato letto");
-        else
-            return QString("L'articolo è ancora da leggere");
-    }(), this);
+    descrizioneLayout->addRow("Numero di pagine: ", new QLabel(QString::number(media_cartaceo->getNumeroPagine())));
+    descrizioneLayout->addRow("Editore: ", new QLabel(QString::fromStdString(media_cartaceo->getEditore())));
 
-    descrizioneLayout->addWidget(numero_pagine);
-    descrizioneLayout->addWidget(editore);
-    descrizioneLayout->addWidget(letto);
+    QString lettoText = media_cartaceo->getLetto() ? "Già letto" : "Ancora da leggere";
+    QLabel* lettoLabel = new QLabel(lettoText);
+    descrizioneLayout->addRow("Letto:", lettoLabel);
 }
-/*
+
 void VisitorWidget::visit(Media_video* media_video) {
-    // codice per gestire Media_video
+    // chiamata del visit padre
+    visit(static_cast<Multimedia*>(media_video));
+
+    descrizioneLayout->addRow("Regista: ", new QLabel(QString::fromStdString(media_video->getRegista())));
+
+    QString guardatoText = media_video->getGuardato() ? "Già guardato" : "Ancora da gurdare";
+    QLabel* guardatoLabel = new QLabel(guardatoText);
+    descrizioneLayout->addRow("Guardato:", guardatoLabel);
 }
 
-void VisitorWidget::visit(Serie_tv* serie_tv) {
-    // codice per gestire Serie_tv
+void VisitorWidget::visit(Media_audio* media_audio) {
+    // chiamata del visito padre
+    visit(static_cast<Multimedia*>(media_audio));
+
+    QString ascoltatoText = media_audio->getAscoltato() ? "Già ascoltato" : "Ancora da gurdare";
+    QLabel* ascoltatoLabel = new QLabel(ascoltatoText);
+    descrizioneLayout->addRow("Guardato:", ascoltatoLabel);
 }
 
-void VisitorWidget::visit(Cd* cd) {
-    // codice per gestire Cd
-}
+/*
 
 void VisitorWidget::visit(Audiolibro* audiolibro) {
     // codice per gestire Audiolibro
 }
+*/
 
 void VisitorWidget::visit(Periodico* periodico) {
-    // codice per gestire Periodico
-}*/
+    //chiamata del visit padre
+    visit(static_cast<Media_cartaceo*>(periodico));
+
+    descrizioneLayout->addRow("Periodo:", new QLabel(QString::fromStdString(periodico->periodoToString())));
+    descrizioneLayout->addRow("Diffusione: ", new QLabel(QString::fromStdString(periodico->diffusioneToString())));
+    descrizioneLayout->addRow("Numero articoli: ", new QLabel(QString::number((periodico->getNumeroArticoli()))));
+    descrizioneLayout->addRow("Data: ", new QLabel(QString::fromStdString(periodico->getData())));
+}
 
 void VisitorWidget::visit(Libro* libro) {
     //chiamata del visit padre
     visit(static_cast<Media_cartaceo*>(libro));
 
-    // codice per gestire Libro
-    QLabel* autore = new QLabel(QString("Autore: %1").arg(QString::fromStdString(libro->getAutore())), this);
-
-    descrizioneLayout->addWidget(autore);
+    descrizioneLayout->addRow("Autore: ", new QLabel(QString::fromStdString(libro->getAutore())));
 }
-/*
-void VisitorWidget::visit(Fumetto* fumetto) {
-    // codice per gestire Fumetto
-}*/
+
+void VisitorWidget::visit(Cd* cd) {
+    // chiamata del visit padre
+    visit(static_cast<Media_audio*>(cd));
+
+    descrizioneLayout->addRow("Artista:", new QLabel(QString::fromStdString(cd->getArtista())));
+    descrizioneLayout->addRow("Numero tracce:", new QLabel(QString::number(cd->getNumeroTracce())));
+}
 
 

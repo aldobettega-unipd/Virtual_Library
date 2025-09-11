@@ -18,6 +18,8 @@ public:
 
 signals:
     void backRequested();
+    void prenotaRequested(Biblioteca* media);
+    void restituisciRequested(Biblioteca* media);
 
 protected:
     //metodi template
@@ -39,6 +41,9 @@ protected:
     QPushButton* backButton;
     QLabel* titleLabel;
     QWidget* contentArea;
+    QHBoxLayout* pulsantiLayout;
+    QPushButton* prenota;
+    QPushButton* restituisci;
 
 private slots:
     void onBackClicked();

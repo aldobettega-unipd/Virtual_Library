@@ -4,7 +4,6 @@
 BasePage::BasePage(QWidget* parent) : QWidget(parent) {
     setupCommonUI();
     setupCommonConnections();
-    //applyStyles();
 }
 
 void BasePage::setupCommonUI() {
@@ -17,6 +16,7 @@ void BasePage::setupCommonUI() {
     //parte di ricerca
     QHBoxLayout* centralLayout = new QHBoxLayout;
     searchWidget = new SearchWidget(this);
+
     galleryWidget = new GalleryWidget(false, this);
 
     centralLayout->addWidget(searchWidget);
@@ -32,7 +32,7 @@ void BasePage::setupMenuBar() {
     menuBar = new QWidget(this);
     QHBoxLayout* menuLayout = new QHBoxLayout(menuBar);
     logoutButton = new QPushButton("Logout", this);
-    menuLayout->addWidget(logoutButton, 0, Qt::AlignRight);
+    menuLayout->addWidget(logoutButton, 0, Qt::AlignLeft);
 }
 
 void BasePage::setupCommonConnections() {
@@ -41,9 +41,9 @@ void BasePage::setupCommonConnections() {
 
     connect(searchWidget, &SearchWidget::searchTextChanged, galleryWidget, &GalleryWidget::filterByText);
     connect(searchWidget, &SearchWidget::filtersChanged, galleryWidget, &GalleryWidget::applyFilters);
+
 }
 
 void BasePage::onBibliotecaUpdated(const QList<Biblioteca*>& data) {
     galleryWidget->setMediaData(data);
-    //detailPage->setMediaData(data);
 }

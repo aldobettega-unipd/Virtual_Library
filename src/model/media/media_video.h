@@ -15,5 +15,5 @@ public:
     virtual bool getGuardato() const;
     virtual void setRegista(const string&);
     virtual void setGuardato(const bool&);
-    virtual void accept(Visitor* visitor) override = 0;
+    virtual void accept(Visitor* visitor) override;
 };

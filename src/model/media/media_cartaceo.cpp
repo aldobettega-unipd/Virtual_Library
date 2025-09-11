@@ -26,3 +26,7 @@ void Media_cartaceo::setNumeroPagine(const int& n) {
 void Media_cartaceo::setEditore(const string& e) {
     editore = e;
 }
+
+void Media_cartaceo::setLetto(const bool& l) {
+    letto = l;
+}

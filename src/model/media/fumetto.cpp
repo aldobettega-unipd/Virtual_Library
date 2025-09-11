@@ -1,10 +1,10 @@
 #include "fumetto.h"
 
-Fumetto::Fumetto(string titolo, string annoPubblicazione, string id, string genere, string immagine, int copieTotali, int numeroPagine,
-        string lingua, string editore, string autore, int numeroVolume, string nomeSaga, string disegnatore, 
-        bool colorato, int copieInPrestito, bool letto):
+Fumetto::Fumetto(string titolo, string annoPubblicazione, string id, string genere, string immagine, string lingua, int copieTotali,
+                 int numeroPagine, string editore, string autore, int numeroVolume, string nomeSaga, string disegnatore, bool colorato,
+                 int copieInPrestito, bool letto):
         Libro(titolo, annoPubblicazione, id, genere, immagine, lingua, copieTotali, numeroPagine, editore, autore, copieInPrestito,
-            letto), numeroVolume(numeroVolume), nomeSaga(nomeSaga), disegnatore(disegnatore) {}
+            letto), numeroVolume(numeroVolume), nomeSaga(nomeSaga), disegnatore(disegnatore), colorato(colorato) {}
 
 Fumetto::~Fumetto() {}
 

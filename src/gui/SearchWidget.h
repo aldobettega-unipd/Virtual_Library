@@ -3,39 +3,41 @@
 
 #include <QWidget>
 #include <QLineEdit>
-#include <QVBoxLayout>
+#include <QFormLayout>
 #include <QCheckBox>
+#include <QPushButton>
 
 class SearchWidget : public QWidget
 {
     Q_OBJECT
 private:
-    QVBoxLayout* layout;
+    QFormLayout* formLayout;
     QLineEdit* searchBar;
+    QPushButton* searchButton;
+    QPushButton* resetButton;
     QWidget* filterBox;
-
-    // Filtri
     QCheckBox* box2000oggi;
     QCheckBox* box1900;
     QCheckBox* box1800;
     QCheckBox* box1700;
     QCheckBox* boxPrima1700;
-    QLineEdit* autoreEdit;
+    QLineEdit* linguaEdit;
     QLineEdit* genereEdit;
     QCheckBox* disponibileCheck;
 
-public:
-    explicit SearchWidget(QWidget *parent = nullptr);
     void setupUI();
     void setupConnections();
+
+public:
+    explicit SearchWidget(QWidget *parent = nullptr);
 
 signals:
     void searchTextChanged(const QString& text);
     void filtersChanged(const QMap<QString, QVariant>& filters);
 
 private slots:
-    void onSearchTextChanged(const QString& text);
-    void onFiltersChanged();
+    void onSearchButtonClicked();
+    void onResetButtonClicked();
 
 };
 

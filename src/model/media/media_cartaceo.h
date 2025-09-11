@@ -16,5 +16,6 @@ public:
     virtual bool getLetto() const;
     virtual void setNumeroPagine(const int&);
     virtual void setEditore(const string&);
+    virtual void setLetto(const bool&);
     virtual void accept(Visitor* visitor) override = 0;
 };

@@ -23,6 +23,10 @@ void JsonManager::notifyObservers() {
         obs->onBibliotecaUpdated(bibliotecaList);
 }
 
+QString JsonManager::getFilePath() const {
+    return filePath;
+}
+
 // Legge il file e lo traduce in QJsonArray e lo scrive su jsonArray
 bool JsonManager::readJsonArray(QJsonArray& jsonArray) const {
     QFile file(filePath);
@@ -54,6 +58,7 @@ bool JsonManager::writeJsonArray(QJsonArray& in) const {
 
     // da QJson array a QJson document
     QJsonDocument doc(in);
+    file.write(doc.toJson(QJsonDocument::Indented));
     return true;
 }
 
@@ -74,11 +79,15 @@ QList<Biblioteca*> JsonManager::loadBibliotecaListFromJson() {
         const auto classe = obj.value("Classe").toString();
         Biblioteca* created = nullptr;
 
-        if (classe == "Libro")
+        if (classe == "Media_video") {
+            created = loadMediaVideo(obj);
+        } else if (classe == "Cd") {
+            created = loadCd(obj);
+        } else if (classe == "Periodico") {
+            created = loadPeriodici(obj);
+        } else if (classe == "Libro") {
             created = loadLibri(obj);
-        // TO DO: aggiungere le classi
-
-        else qWarning() << "Classe sconosciuta:" << classe;
+        } else qWarning() << "Classe sconosciuta:" << classe;
 
         if (created)
             out.append(created);
@@ -105,6 +114,13 @@ JsonManager::BibliotecaData JsonManager::loadBiblioteca(const QJsonObject& obj) 
     return b;
 }
 
+JsonManager::MultimediaData JsonManager::loadMultimedia(const QJsonObject& obj) const {
+    MultimediaData m;
+    m.supportoTecnologico = obj.value("supportoTecnologico").toString();
+    m.casaDiProduzione = obj.value("casaDiProduzione").toString();
+    m.durata = obj.value("durata").toInt();
+    return m;
+}
 
 JsonManager::MediaCartaceoData JsonManager::loadMediaCartaceo(const QJsonObject& obj) const {
     MediaCartaceoData m;
@@ -114,16 +130,77 @@ JsonManager::MediaCartaceoData JsonManager::loadMediaCartaceo(const QJsonObject&
     return m;
 }
 
+Biblioteca* JsonManager::loadMediaVideo(const QJsonObject& obj) const {
+    const auto b = loadBiblioteca(obj);
+    const auto m = loadMultimedia(obj);
+
+    MediaVideoData v;
+
+    v.regista = obj.value("regista").toString();
+    v.guardato = obj.value("guardato").toBool();
+
+    return new Media_video(b.titolo.toStdString(), b.annoPubblicazione.toStdString(), b.id.toStdString(),
+                           b.genere.toStdString(), b.immagine.toStdString(), b.lingua.toStdString(),
+                           b.copieTotali, m.supportoTecnologico.toStdString(), m.casaDiProduzione.toStdString(),
+                           m.durata, v.regista.toStdString(), v.guardato, b.copieInPrestito
+                           );
+}
+
+JsonManager::MediaAudioData JsonManager::loadMediaAudio(const QJsonObject& obj) const {
+    MediaAudioData a;
+    a.ascoltato = obj.value("ascoltato").toBool();
+    return a;
+}
+
+
+Biblioteca* JsonManager::loadPeriodici(const QJsonObject& obj) const {
+    const auto b = loadBiblioteca(obj);
+    const auto c = loadMediaCartaceo(obj);
+
+    PeriodicoData p;
+
+    QString periodoStr = obj.value("periodo").toString();
+    QString diffusioneStr = obj.value("diffusione").toString();
+
+    p.periodo = Periodico::stringToPeriodo(periodoStr.toStdString());
+    p.diffusione = Periodico::stringToDiffusione(diffusioneStr.toStdString());
+    p.numero_articoli = obj.value("numeroArticoli").toInt();
+    p.data = obj.value("data").toString();
+
+    return new Periodico(b.titolo.toStdString(), b.annoPubblicazione.toStdString(), b.id.toStdString(),
+                         b.genere.toStdString(), b.immagine.toStdString(), b.lingua.toStdString(),
+                         b.copieTotali, c.numeroPagine, c.editore.toStdString(),
+                         p.periodo, p.diffusione, p.numero_articoli, p.data.toStdString(), b.copieInPrestito, c.letto);
+
+}
+
+
 Biblioteca* JsonManager::loadLibri(const QJsonObject& obj) const {
     const auto b = loadBiblioteca(obj);
     const auto c = loadMediaCartaceo(obj);
 
-    const QString autore = obj.value("autore").toString();
+    LibroData l;
+    l.autore = obj.value("autore").toString();
 
     return new Libro(b.titolo.toStdString(), b.annoPubblicazione.toStdString(), b.id.toStdString(),
                      b.genere.toStdString(), b.immagine.toStdString(), b.lingua.toStdString(),
                      b.copieTotali, c.numeroPagine, c.editore.toStdString(),
-                     autore.toStdString(), b.copieInPrestito, c.letto);
+                     l.autore.toStdString(), b.copieInPrestito, c.letto);
+}
+
+Biblioteca* JsonManager::loadCd(const QJsonObject& obj) const {
+    const auto b = loadBiblioteca(obj);
+    const auto m = loadMultimedia(obj);
+    const auto a = loadMediaAudio(obj);
+
+    CdData c;
+    c.artista = obj.value("artista").toString();
+    c.numeroTracce = obj.value("numero_tracce").toInt();
+
+    return new Cd(b.titolo.toStdString(), b.annoPubblicazione.toStdString(), b.id.toStdString(),
+                           b.genere.toStdString(), b.immagine.toStdString(), b.lingua.toStdString(),
+                           b.copieTotali, m.supportoTecnologico.toStdString(), m.casaDiProduzione.toStdString(),
+                           m.durata, c.artista.toStdString(), c.numeroTracce, b.copieInPrestito, a.ascoltato);
 }
 
 
@@ -133,16 +210,23 @@ void JsonManager::saveNewObject(Biblioteca* b) {
     QJsonArray arr;
 
     if(!readJsonArray(arr)) {
-        qWarning() << "Lettura di biblioteca.json non riuscita";
-        return;
+        qWarning() << "Creazione nuovo array vuoto";
+        arr = QJsonArray();
     }
 
     QJsonObject obj;
     // chiamata al giusto save che restituirà l'oggetto json da aggiungere al QJsonArray arr
     // TODO aggiungere nuove classi
-    if (auto p = dynamic_cast<Libro*>(b)) {
+    if (auto p = dynamic_cast<Media_video*>(b)) {
         obj = save(p);
-    } else {
+    } else if (auto p = dynamic_cast<Libro*>(b)) {
+        obj = save(p);
+    } else if (auto p = dynamic_cast<Periodico*>(b)) {
+        obj = save(p);
+    } else if (auto p = dynamic_cast<Cd*>(b)) {
+        obj = save(p);
+    }
+    else {
         qWarning() << "[JsonManager] Tipo non supportato in saveNewObject";
         return;
     }
@@ -171,13 +255,49 @@ void JsonManager::save(const Biblioteca* b, QJsonObject& obj) const {
     obj["copieInPrestito"] = b->getCopieInPrestito();
 }
 
+void JsonManager::save(const Multimedia* m, QJsonObject& obj) const {
+    obj["supportoTecnologico"] = QString::fromStdString(m->getSupportoTecnologico());
+    obj["casaDiProduzione"] = QString::fromStdString(m->getCasaDiProduzione());
+    obj["durata"] = QString::number(m->getDurata());
+}
+
 void JsonManager::save(const Media_cartaceo* c, QJsonObject& obj) const {
     obj["numeroPagine"] = c->getNumeroPagine();
     obj["editore"] = QString::fromStdString(c->getEditore());
     obj["letto"] = c->getLetto();
 }
 
+void JsonManager::save(const Media_audio* m, QJsonObject& obj) const {
+    obj["ascoltato"] = m->getAscoltato();
+}
+
 // ritorna l'oggetto Json da salvare completo
+QJsonObject JsonManager::save(const Media_video* video) const {
+    QJsonObject obj;
+    obj["Classe"] = "Media_video";
+    save(static_cast<const Biblioteca*>(video), obj);
+    save(static_cast<const Multimedia*>(video), obj);
+
+    obj["regista"] = QString::fromStdString(video->getRegista());
+    obj["guardato"] = video->getGuardato();
+
+    return obj;
+}
+
+QJsonObject JsonManager::save(const Periodico* periodico) const {
+    QJsonObject obj;
+    obj["Classe"] = "Periodico";
+    save(static_cast<const Biblioteca*>(periodico), obj);
+    save(static_cast<const Media_cartaceo*>(periodico), obj);
+
+    obj["periodo"] = QString::fromStdString(periodico->periodoToString());
+    obj["diffusione"] = QString::fromStdString(periodico->diffusioneToString());
+    obj["numeroArticoli"] = periodico->getNumeroArticoli();
+    obj["data"] = QString::fromStdString(periodico->getData());
+
+    return obj;
+}
+
 QJsonObject JsonManager::save(const Libro* libro) const {
     QJsonObject obj;
     obj["Classe"] = "Libro";
@@ -188,7 +308,18 @@ QJsonObject JsonManager::save(const Libro* libro) const {
     return obj;
 }
 
+QJsonObject JsonManager::save(const Cd* cd) const {
+    QJsonObject obj;
+    obj["Classe"] = "Cd";
+    save(static_cast<const Biblioteca*>(cd), obj);
+    save(static_cast<const Multimedia*>(cd), obj);
+    save(static_cast<const Media_audio*>(cd), obj);
 
+    obj["artista"] = QString::fromStdString(cd->getArtista());
+    obj["numeroTracce"] = cd->getNumeroTracce();
+
+    return obj;
+}
 
 
 
@@ -246,10 +377,15 @@ void JsonManager::updateObject(Biblioteca* biblio) {
 
     QJsonObject obj;
     // dispatch del tipo di oggetto da aggiornare, viene chiamato il giusto save che ritorna il QJsonObject da aggiornare
-    if (auto p = dynamic_cast<Libro*>(biblio))
+    if (auto p = dynamic_cast<Media_video*>(biblio)) {
         obj = save(p);
-    //TODO aggiungere classi
-    else {
+    } else if (auto p = dynamic_cast<Libro*>(biblio)) {
+        obj = save(p);
+    } else if (auto p = dynamic_cast<Periodico*>(biblio)) {
+        obj = save(p);
+    } else if (auto p = dynamic_cast<Cd*>(biblio)) {
+        obj = save(p);
+    } else {
         qWarning() << "Tipo non supportato in updateObject";
         return;
     }
@@ -260,29 +396,113 @@ void JsonManager::updateObject(Biblioteca* biblio) {
     notifyObservers();
 }
 
-
-
-
 void JsonManager::savePrenota(Biblioteca* biblio) {
-    // Aggiorna solo Disponibile/Copie dell'occorrenza specifica
+    if (!biblio) return;
+
+    // Prima modifica l'oggetto
+    try {
+        biblio->preleva();
+    } catch (const std::runtime_error& e) {
+        qWarning() << "Errore:" << e.what();
+        return;
+    }
+
+    // Trova l'indice
+    int index = -1;
+    for (int i = 0; i < bibliotecaList.size(); ++i) {
+        if (bibliotecaList[i] == biblio) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) return;
+
+    QJsonArray arr;
+    if (!readJsonArray(arr)) return;
+
+    if (index < arr.size()) {
+        QJsonObject obj = arr[index].toObject();
+        obj["disponibile"] = biblio->getDisponibilita();
+        obj["copieInPrestito"] = biblio->getCopieInPrestito();
+        arr[index] = obj;
+
+        writeJsonArray(arr);
+        notifyObservers();
+    }
+}
+
+void JsonManager::saveRestituisci(Biblioteca* biblio) {
+    if (!biblio) return;
+
+    // Prima modifica l'oggetto in memoria
+    try {
+        biblio->restituisci();
+    } catch (const std::runtime_error& e) {
+        qWarning() << "Errore restituisci:" << e.what();
+        return;
+    }
+
+    if (auto video = dynamic_cast<Media_video*>(biblio)) {
+        video->setGuardato(true);  // Quando restituisci un video, lo hai guardato
+    } else if (auto cartaceo = dynamic_cast<Media_cartaceo*>(biblio)) {
+        cartaceo->setLetto(true);
+    } else if (auto audio = dynamic_cast<Media_audio*>(biblio)) {
+        audio->setAscoltato(true);
+    }
+
+    // Trova l'indice nella lista
+    int index = -1;
+    for (int i = 0; i < bibliotecaList.size(); ++i) {
+        if (bibliotecaList[i] == biblio) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        qWarning() << "Media non trovato nella lista";
+        return;
+    }
+
+    // Leggi e aggiorna il JSON
+    QJsonArray arr;
+    if (!readJsonArray(arr)) return;
+
+    if (index < arr.size()) {
+        QJsonObject obj = arr[index].toObject();
+        obj["disponibile"] = biblio->getDisponibilita();
+        obj["copieInPrestito"] = biblio->getCopieInPrestito();
+        arr[index] = obj;
+
+        if (auto video = dynamic_cast<Media_video*>(biblio)) {
+            obj["guardato"] = video->getGuardato();
+        } else if (auto cartaceo = dynamic_cast<Media_cartaceo*>(biblio)) {
+            obj["letto"] = cartaceo->getLetto();
+        } else if (auto audio = dynamic_cast<Media_audio*>(biblio)) {
+            obj["ascoltato"] = audio->getAscoltato();
+        }
+
+        if (writeJsonArray(arr)) {
+            notifyObservers();
+        }
+    }
+}
+
+void JsonManager::saveGuardato(Media_video* video) {
     int occToSkip = 0;
     for (auto* it : bibliotecaList) {
-        if (it == biblio) break;
-        if (it->getTitolo() == biblio->getTitolo()) ++occToSkip;
+        if (it == video) break;
+        if (it->getTitolo() == video->getTitolo()) ++occToSkip;
     }
 
 
     QJsonArray arr; if (!readJsonArray(arr)) return;
-    QJsonArray updated;
-    int occ = 0; bool done = false;
+    QJsonArray updated; int occ = 0; bool done = false;
     for (const auto& v : arr) {
         auto o = v.toObject();
-        if (!done && o.value("Titolo").toString() == QString::fromStdString(biblio->getTitolo())) {
-            if (occ == occToSkip) {
-                o["disponibile"] = biblio->getDisponibilità();
-                o["copieInPrestito"] = biblio->getCopieInPrestito();
-                done = true;
-            }
+        if (!done && o.value("titolo").toString() == QString::fromStdString(video->getTitolo())) {
+            if (occ == occToSkip) { o["guardato"] = video->getGuardato(); done = true; }
             ++occ;
         }
         updated.append(o);
@@ -305,6 +525,27 @@ void JsonManager::saveLetto(Media_cartaceo* cartaceo) {
         auto o = v.toObject();
         if (!done && o.value("Titolo").toString() == QString::fromStdString(cartaceo->getTitolo())) {
             if (occ == occToSkip) { o["Letto"] = cartaceo->getLetto(); done = true; }
+            ++occ;
+        }
+        updated.append(o);
+    }
+    if (done) writeJsonArray(updated);
+    notifyObservers();
+}
+
+void JsonManager::saveAscoltato(Media_audio* audio) {
+    int occToSkip = 0;
+    for (auto* it : bibliotecaList) {
+        if (it == audio) break;
+        if (it->getTitolo() == audio->getTitolo()) ++occToSkip;
+    }
+
+    QJsonArray arr; if (!readJsonArray(arr)) return;
+    QJsonArray updated; int occ = 0; bool done = false;
+    for (const auto& v : arr) {
+        auto o = v.toObject();
+        if (!done && o.value("titolo").toString() == QString::fromStdString(audio->getTitolo())) {
+            if (occ == occToSkip) { o["guardato"] = audio->getAscoltato(); done = true; }
             ++occ;
         }
         updated.append(o);

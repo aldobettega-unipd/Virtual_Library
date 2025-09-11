@@ -1,11 +1,11 @@
 #include "AdminPage.h"
 #include "../model/persistence/JsonManager.h"
-#include "MediaDialog.h"
 
 #include <QList>
 #include <QMessageBox>
+#include <QFileDialog>
 
-AdminPage::AdminPage(QWidget *parent) : BasePage(parent), addButton(nullptr)
+AdminPage::AdminPage(QWidget *parent) : BasePage(parent), addButton(nullptr), saveButton(nullptr), loadButton(nullptr)
 {
     setupSpecificUI();
     setupSpecificConnections();
@@ -15,15 +15,25 @@ void AdminPage::setupSpecificUI() {
     QHBoxLayout* menuLayout = qobject_cast<QHBoxLayout*>(menuBar->layout());
     if (menuLayout) {
         addButton = new QPushButton("Aggiungi", this);
-        menuLayout->insertWidget(0, addButton, 0, Qt::AlignLeft);
-    }
+        saveButton = new QPushButton("Salva", this);
+        loadButton = new QPushButton("Carica", this);
 
-    setStyleSheet("AdminPage { background-color: #fff3cd; }");
+        QSize buttonSize(100, 30);
+        addButton->setFixedSize(buttonSize);
+        saveButton->setFixedSize(buttonSize);
+        loadButton->setFixedSize(buttonSize);
+
+        menuLayout->addWidget(addButton, 0, Qt::AlignRight);
+        menuLayout->addWidget(saveButton, 0);
+        menuLayout->addWidget(loadButton, 0);
+    }
 }
 
 void AdminPage::setupSpecificConnections() {
 
     connect(addButton, &QPushButton::clicked, this, &AdminPage::onAddButtonClicked);
+    connect(saveButton, &QPushButton::clicked, this, &AdminPage::onSaveButtonClicked);
+    connect(loadButton, &QPushButton::clicked, this, &AdminPage::onLoadButtonClicked);
 
     connect(this, &AdminPage::onEditMedia, this, &AdminPage::handleEditMedia);
     connect(this, &AdminPage::onDeleteMedia, this, &AdminPage::handleDeleteMedia);
@@ -33,28 +43,7 @@ void AdminPage::setupSpecificConnections() {
 }
 
 void AdminPage::onAddButtonClicked() {
-
-    MediaDialog dialog(this);
-    if (dialog.exec() == QDialog::Accepted) {
-        Biblioteca* newMedia = dialog.createMedia();
-        if(newMedia) {
-            try {
-                if (newMedia->getTitolo().empty() || newMedia->getId().empty()) {
-                    QMessageBox::warning(this, "Errore", "Dati obbligatori mancanti");
-                    delete newMedia;
-                    return;
-                }
-                emit createNewObject(newMedia);
-                QMessageBox::information(this, "Successo", "Media aggiunto con successo");
-            } catch (const std::exception& e) {
-                QMessageBox::critical(this, "Errore", QString("Errore nel salvataggio: %1").arg(e.what()));
-                delete newMedia;
-            }
-        } else {
-            QMessageBox::warning(this, "Errore", "Tipo di media non supportatp");
-        }
-    }
-
+    emit createNewObject(nullptr);
 }
 
 void AdminPage::handleEditMedia(Biblioteca* media) {
@@ -71,6 +60,32 @@ void AdminPage::handleDeleteMedia(Biblioteca* media) {
 
     if (reply == QMessageBox::Yes) {
         emit removeObject(media);
+    }
+}
+
+void AdminPage::onSaveButtonClicked() {
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        "Salva biblioteca",
+        "biblioteca.json",
+        "File JSON (*.json);;Tutti i file (*.*)"
+        );
+
+    if (!fileName.isEmpty()) {
+        emit saveDataRequested(fileName);
+    }
+}
+
+void AdminPage::onLoadButtonClicked() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "Carica biblioteca",
+        "",
+        "File JSON (*.json);;Tutti i file (*.*)"
+        );
+
+    if (!fileName.isEmpty()) {
+        emit loadDataRequested(fileName);
     }
 }
 

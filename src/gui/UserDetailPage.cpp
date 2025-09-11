@@ -9,8 +9,3 @@ UserDetailPage::UserDetailPage(QWidget* parent) : BaseDetailPage(parent)
 void UserDetailPage::setupSpecificUI() {}
 
 void UserDetailPage::setupSpecificConnections() {}
-
-void UserDetailPage::onBackClicked() {
-    emit backRequested();
-}
-

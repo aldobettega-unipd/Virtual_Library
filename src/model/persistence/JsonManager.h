@@ -9,22 +9,31 @@
 #include <QList>
 #include <QString>
 
+#include "../media/media_video.h"
+#include "../media/cd.h"
+#include "../media/periodico.h"
 #include "../media/libro.h"
 
 class Biblioteca;
+class Multimedia;
 class Media_cartaceo;
 class Media_audio;
-class Media_video;
 
 class JsonObserver;
 
 //Questa classe consente di operare tra oggetti Json e tutti gli oggetti di tipo Biblioteca in modo granulare,
 //quindi con operazioni di salvataggio di una classe o caricamento di un file Json.
 
-
 class JsonManager : public QObject
 {
     Q_OBJECT
+public:
+    explicit JsonManager(const QString& filePath, QObject* parent = nullptr);
+    QList<Biblioteca*> loadBibliotecaListFromJson();
+    void addObserver(JsonObserver* obs);
+
+    QString getFilePath() const;
+
 private:
     QList<JsonObserver*> observers;
     QList<Biblioteca*> bibliotecaList;
@@ -42,9 +51,9 @@ private:
         bool disponibile;
     };
     struct MultimediaData {
-        QString supportoTecnico;
+        QString supportoTecnologico;
         QString casaDiProduzione;
-        QString durata;
+        int durata;
     };
     struct MediaCartaceoData {
         int numeroPagine;
@@ -59,51 +68,48 @@ private:
         bool ascoltato;
     };
     struct PeriodicoData {
-        QString periodo;
-        QString diffusione;
+        Periodico::Periodo periodo;
+        Periodico::Diffusione diffusione;
         int numero_articoli;
         QString data;
     };
     struct LibroData {
         QString autore;
     };
-    struct SerieTvData {
-        int numeroEpisodi;
-        int numeroStagioni;
-        int numeroDvd;
-    };
     struct CdData {
         QString artista;
-        QString album;
-        QString numeroTracce;
+        int numeroTracce;
     };
     struct AudiolibroData {
         QString narratore;
         QString libroOriginale;
     };
-    struct FumettoData {
-        QString nomeSaga;
-        int numeroVolume;
-        QString disegnatore;
-        bool colorato;
-    };
 
     //caricamento
     BibliotecaData loadBiblioteca(const QJsonObject& obj) const;
+    MultimediaData loadMultimedia(const QJsonObject& obj) const;
     MediaCartaceoData loadMediaCartaceo(const QJsonObject& obj) const;
+    Biblioteca* loadMediaVideo(const QJsonObject& obj) const;
+    MediaAudioData loadMediaAudio(const QJsonObject& obj) const;
+    Biblioteca* loadPeriodici(const QJsonObject& obj) const;
     Biblioteca* loadLibri(const QJsonObject& obj) const;
+    Biblioteca* loadCd(const QJsonObject& obj) const;
 
     //salvataggio
     void save(const Biblioteca* b, QJsonObject& obj) const;
+    void save(const Multimedia* m, QJsonObject& obj) const;
     void save(const Media_cartaceo* c, QJsonObject& obj) const;
+    void save(const Media_audio* a, QJsonObject& obj) const;
 
+    QJsonObject save(const Media_video* video) const;
+    QJsonObject save(const Periodico* periodico) const;
     QJsonObject save(const Libro* libro) const;
+    QJsonObject save(const Cd* cd) const;
 
     //utilità
     void notifyObservers();
     bool readJsonArray(QJsonArray& out) const;
     bool writeJsonArray(QJsonArray& in) const;
-
 
 public slots:
     void saveNewObject(Biblioteca* obj);
@@ -111,14 +117,11 @@ public slots:
     void deleteObject(Biblioteca* obj);
 
     void savePrenota(Biblioteca* biblio);
-    void saveLetto(Media_cartaceo* cartaceo);
-    //void saveAscoltato(Media_audio* audio);
-    //void saveVisto(Media_video* video);
-public:
-    explicit JsonManager(const QString& filePath, QObject* parent = nullptr);
-    QList<Biblioteca*> loadBibliotecaListFromJson();
-    void addObserver(JsonObserver* obs);
+    void saveRestituisci(Biblioteca* biblio);
 
+    void saveGuardato(Media_video* video);
+    void saveLetto(Media_cartaceo* cartaceo);
+    void saveAscoltato(Media_audio* audio);
 };
 
 #endif // JSONMANAGER_H

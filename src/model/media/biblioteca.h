@@ -28,7 +28,7 @@ public:
     virtual string getLingua() const;
     virtual int getCopieTotali() const;
     virtual int getCopieInPrestito() const;
-    virtual bool getDisponibilità() const;
+    virtual bool getDisponibilita() const;
     virtual void setTitolo(const string&);
     virtual void setAnnoPubblicazione(const string&);
     virtual void setId(const string&);
@@ -37,7 +37,7 @@ public:
     virtual void setLingua(const string&);
     virtual void setCopieTotali(const int&);
     virtual void setCopieInPrestito(const int&);
-    virtual void setDisponibilità(const bool&);
+    virtual void setDisponibilita(const bool&);
     virtual void restituisci();
     virtual void preleva();
     virtual void accept(Visitor* visitor) = 0;
