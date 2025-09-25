@@ -32,7 +32,6 @@ private slots:
     void onSaveButtonClicked();
     void onLoadButtonClicked();
 
-    void handleEditMedia(Biblioteca* media);
     void handleDeleteMedia(Biblioteca* media);
 
 };

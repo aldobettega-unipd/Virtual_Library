@@ -215,8 +215,6 @@ void BaseEditWidget::onBrowseImage() {
     if (!fileName.isEmpty()) {
         QFileInfo fileInfo(fileName);
 
-        // Salva solo il path relativo dalla root del progetto
-        // Se il file è in ./resources/image.jpg, salva "resources/image.jpg"
         QDir projectDir(".");
         QString relativePath = projectDir.relativeFilePath(fileName);
         imagePath = relativePath;

@@ -119,7 +119,6 @@ void MediaCategorySection::onMediaBoxClicked(Biblioteca* media) {
 
 bool MediaCategorySection::matchesFilters(Biblioteca* media, const QString& searchText,
                                           const QMap<QString, QVariant>& filters) const {
-    // Copia la stessa logica di filtri da GalleryWidget::matchesFilters()
     if (!searchText.isEmpty()) {
         QString searchStr = searchText.toLower();
         QString titolo = QString::fromStdString(media->getTitolo()).toLower();

@@ -1,7 +1,4 @@
 #include "VisitorWidget.h"
-/*
-#include "../media/audiolibro.h"
-*/
 #include "../media/media_video.h"
 #include "../media/cd.h"
 #include "../media/periodico.h"
@@ -41,12 +38,15 @@ QWidget* VisitorWidget::getWidget() const{
 void VisitorWidget::visit(Biblioteca *biblio) {
     if (!biblio) return;
     // Pulizia della descrizione e della pulsantiera
-    QLayoutItem* child;
-    while ((child = descrizioneLayout->takeAt(0)) != nullptr) {
-        if (child->widget()) {
-            child->widget()->deleteLater();
+    while (descrizioneLayout->count() > 0) {
+        QLayoutItem* child = descrizioneLayout->takeAt(0);
+        if (child) {
+            if (child->widget()) {
+                child->widget()->setParent(nullptr);
+                child->widget()->deleteLater();
+            }
+            delete child;
         }
-        delete child;
     }
     // Setup immagine
     QString imagePath = QString::fromStdString(biblio->getImmagine());
@@ -87,7 +87,7 @@ void VisitorWidget::visit(Multimedia* multimedia) {
 
     descrizioneLayout->addRow("Supporto tecnologico: ", new QLabel(QString::fromStdString(multimedia->getSupportoTecnologico())));
     descrizioneLayout->addRow("Casa di produzione: ", new QLabel(QString::fromStdString(multimedia->getCasaDiProduzione())));
-    descrizioneLayout->addRow("Durata: ", new QLabel(QString::number(multimedia->getDurata())));
+    descrizioneLayout->addRow("Durata (minuti): ", new QLabel(QString::number(multimedia->getDurata())));
 }
 
 void VisitorWidget::visit(Media_cartaceo* media_cartaceo) {
@@ -118,17 +118,10 @@ void VisitorWidget::visit(Media_audio* media_audio) {
     // chiamata del visito padre
     visit(static_cast<Multimedia*>(media_audio));
 
-    QString ascoltatoText = media_audio->getAscoltato() ? "Già ascoltato" : "Ancora da gurdare";
+    QString ascoltatoText = media_audio->getAscoltato() ? "Già ascoltato" : "Ancora da ascoltare";
     QLabel* ascoltatoLabel = new QLabel(ascoltatoText);
-    descrizioneLayout->addRow("Guardato:", ascoltatoLabel);
+    descrizioneLayout->addRow("Ascoltato:", ascoltatoLabel);
 }
-
-/*
-
-void VisitorWidget::visit(Audiolibro* audiolibro) {
-    // codice per gestire Audiolibro
-}
-*/
 
 void VisitorWidget::visit(Periodico* periodico) {
     //chiamata del visit padre

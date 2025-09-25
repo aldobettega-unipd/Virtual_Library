@@ -9,4 +9,3 @@ UserPage::UserPage(QWidget *parent) : BasePage(parent)
 
 void UserPage::setupSpecificUI() {}
 void UserPage::setupSpecificConnections() {}
-void UserPage::handleMediaAction(Biblioteca* media) {}

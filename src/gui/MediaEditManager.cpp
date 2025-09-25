@@ -152,7 +152,6 @@ void MediaEditManager::enterEditMode(Biblioteca* media) {
 void MediaEditManager::onMediaTypeChanged(int index) {
     if (currentMode == CREATE_MODE) {
         if (!confirmDiscardChanges()) {
-            // Ripristina la selezione precedente
             typeComboBox->blockSignals(true);
             typeComboBox->setCurrentIndex(editStack->currentIndex());
             typeComboBox->blockSignals(false);

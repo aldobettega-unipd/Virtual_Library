@@ -32,7 +32,7 @@ void BaseDetailPage::setupCommonUI() {
 
     scrollArea->setWidget(contentArea);
 
-    // Bottom pulsantiera
+    // pulsantiera
     prenota = new QPushButton("Prenota", this);
     restituisci = new QPushButton("Restituisci", this);
     pulsantiLayout = new QHBoxLayout();
@@ -89,14 +89,20 @@ void BaseDetailPage::refreshDisplay() {
 
 void BaseDetailPage::clearContent() {
     if (contentLayout) {
-        QLayoutItem* item;
-        while ((item = contentLayout->takeAt(0)) != nullptr) {
-            if (item->widget()) item->widget()->deleteLater();
-            delete item;
+        while (contentLayout->count() > 0) {
+            QLayoutItem* item = contentLayout->takeAt(0);
+            if (item) {
+                if (item->widget()) {
+                    item->widget()->setParent(nullptr);
+                    item->widget()->deleteLater();
+                }
+                delete item;
+            }
         }
     }
 
     if (visitorWidget) {
+        visitorWidget->setParent(nullptr);
         visitorWidget->deleteLater();
         visitorWidget = nullptr;
     }

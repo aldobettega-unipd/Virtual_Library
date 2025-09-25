@@ -14,9 +14,6 @@ public:
 protected:
     void setupSpecificUI();
     void setupSpecificConnections();
-
-private slots:
-    void handleMediaAction(Biblioteca* media);
 };
 
 #endif // USERPAGE_H

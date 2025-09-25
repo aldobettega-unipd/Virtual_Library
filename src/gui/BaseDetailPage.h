@@ -22,7 +22,7 @@ signals:
     void restituisciRequested(Biblioteca* media);
 
 protected:
-    //metodi template
+    //metodi virtuali puri
     virtual void setupSpecificUI() = 0;
     virtual void setupSpecificConnections() = 0;
 

@@ -9,7 +9,6 @@ class Media_audio;
 class Periodico;
 class Libro;
 class Cd;
-class Audiolibro;
 
 class Visitor
 {
@@ -23,7 +22,6 @@ public:
     virtual void visit(Periodico* periodico) = 0;
     virtual void visit(Libro* libro) = 0;
     virtual void visit(Cd* cd) = 0;
-    //virtual void visit(Audiolibro* audiolibro) = 0;
 };
 
 #endif // VISITOR_H

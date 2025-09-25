@@ -29,8 +29,8 @@ public:
     void setNumeroArticoli(const int&);
     void setData(const string&);
 
-    static Periodo stringToPeriodo(const std::string& str);
-    static Diffusione stringToDiffusione(const std::string& str);
+    static Periodo stringToPeriodo(const string& str);
+    static Diffusione stringToDiffusione(const string& str);
 
     virtual void accept(Visitor* visitor) override;
 };

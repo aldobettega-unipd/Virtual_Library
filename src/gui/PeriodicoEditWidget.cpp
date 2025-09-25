@@ -15,7 +15,7 @@ void PeriodicoEditWidget::setupUI() {
     QFormLayout* periodicoLayout = new QFormLayout(periodicoSection);
 
     periodoBox = new QComboBox(periodicoSection);
-    periodoBox->addItems({"Giornaliero", "Settimanale", "Mensile", "Annuale"});
+    periodoBox->addItems({"Giornaliero", "Settimanale", "Mensile"});
     diffusioneBox = new QComboBox(periodicoSection);
     diffusioneBox->addItems({"Provinciale", "Regionale", "Nazionale", "Internazionale"});
     numeroArticoliEdit = new QLineEdit(periodicoSection);

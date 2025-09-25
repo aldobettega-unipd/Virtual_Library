@@ -16,7 +16,7 @@ void CdEditWidget::setupUI() {
     artistaEdit = new QLineEdit(cdSection);
     nTracceEdit = new QLineEdit(cdSection);
 
-    cdLayout->addRow("Arstista*:", artistaEdit);
+    cdLayout->addRow("Artista*:", artistaEdit);
     cdLayout->addRow("Numero tracce:*", nTracceEdit);
 
     mainLayout->addWidget(cdSection);

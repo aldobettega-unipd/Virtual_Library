@@ -55,7 +55,7 @@ void GalleryWidget::initializeSections() {
         categorySections[categoryKey] = section;
         mainLayout->addWidget(section);
 
-        qDebug() << "Created section for:" << categoryKey << "(" << config.displayName << ")";
+        qDebug() << "Sezione creata per: " << categoryKey << config.displayName;
     }
 
     // Spazio finale per layout
@@ -83,7 +83,7 @@ QMap<QString, GalleryWidget::CategoryConfig> GalleryWidget::getCategoryConfigs()
 }
 
 void GalleryWidget::setMediaData(const QList<Biblioteca*>& data) {
-    qDebug() << "GalleryWidget: Setting media data, count:" << data.size();
+    qDebug() << "GalleryWidget: Setting media data:" << data.size();
 
     allMediaData = data;
     redistributeMediaByCategory();
@@ -97,8 +97,7 @@ void GalleryWidget::redistributeMediaByCategory() {
         QString category = getMediaCategory(media);
         mediaByCategory[category].append(media);
 
-        qDebug() << "Media:" << QString::fromStdString(media->getTitolo())
-                 << "-> Category:" << category;
+        qDebug() << "Media:" << QString::fromStdString(media->getTitolo()) << "-> Categoria:" << category;
     }
 
     // Assegna i dati alle sezioni appropriate
@@ -108,9 +107,8 @@ void GalleryWidget::redistributeMediaByCategory() {
 
         if (categorySections.contains(category)) {
             categorySections[category]->setMediaData(mediaList);
-            qDebug() << "Assigned" << mediaList.size() << "items to" << category << "section";
         } else {
-            qWarning() << "No section found for category:" << category;
+            qWarning() << "Nessuna sezione trovata per la categoria:" << category;
         }
     }
 
@@ -145,7 +143,7 @@ QString GalleryWidget::getMediaCategory(Biblioteca* media) const {
         return "Cd";
     }
 
-    qWarning() << "Unknown media type for:" << QString::fromStdString(media->getTitolo());
+    qWarning() << "Tipo sconosciuto per: " << QString::fromStdString(media->getTitolo());
     return "Unknown";
 }
 
@@ -166,8 +164,6 @@ void GalleryWidget::applyFilters(const QMap<QString, QVariant>& filters) {
 }
 
 void GalleryWidget::updateAllSections() {
-    qDebug() << "GalleryWidget: Updating all sections with search:" << currentSearchText;
-
     // Applica filtri a tutte le sezioni
     for (auto* section : categorySections.values()) {
         section->applyFilters(currentSearchText, currentFilters);
@@ -180,6 +176,5 @@ void GalleryWidget::refreshGallery() {
 }
 
 void GalleryWidget::onMediaClicked(Biblioteca* media) {
-    qDebug() << "GalleryWidget: Media clicked:" << QString::fromStdString(media->getTitolo());
     emit mediaClicked(media);
 }

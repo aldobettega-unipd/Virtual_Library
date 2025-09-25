@@ -35,20 +35,13 @@ void AdminPage::setupSpecificConnections() {
     connect(saveButton, &QPushButton::clicked, this, &AdminPage::onSaveButtonClicked);
     connect(loadButton, &QPushButton::clicked, this, &AdminPage::onLoadButtonClicked);
 
-    connect(this, &AdminPage::onEditMedia, this, &AdminPage::handleEditMedia);
     connect(this, &AdminPage::onDeleteMedia, this, &AdminPage::handleDeleteMedia);
 
-    connect(galleryWidget, &GalleryWidget::editMediaRequested, this, &AdminPage::handleEditMedia);
     connect(galleryWidget, &GalleryWidget::deleteMediaRequested, this, &AdminPage::handleDeleteMedia);
 }
 
 void AdminPage::onAddButtonClicked() {
     emit createNewObject(nullptr);
-}
-
-void AdminPage::handleEditMedia(Biblioteca* media) {
-    // Implementa la modifica del media
-    qDebug() << "Modifica media:" << QString::fromStdString(media->getTitolo());
 }
 
 void AdminPage::handleDeleteMedia(Biblioteca* media) {

@@ -12,6 +12,22 @@
 JsonManager::JsonManager(const QString& filePath, QObject* parent)
     : QObject(parent), filePath(filePath) {}
 
+JsonManager::~JsonManager() {
+    qDebug() << "JsonManager destructor called. Cleaning" << bibliotecaList.size() << "objects";
+
+    // Dealloca solo se la lista non è vuota
+    for (int i = 0; i < bibliotecaList.size(); ++i) {
+        Biblioteca* media = bibliotecaList[i];
+        if (media) {
+            qDebug() << "Deleting:" << QString::fromStdString(media->getTitolo());
+            delete media;
+            bibliotecaList[i] = nullptr;  // Previeni double delete
+        }
+    }
+    bibliotecaList.clear();
+    qDebug() << "JsonManager cleanup completed";
+}
+
 void JsonManager::addObserver(JsonObserver* obs) {
     //aggiunge obs alla lista di puntatori agli observers se obs è valido e non è già nella lista
     if (obs && !observers.contains(obs)) observers.append(obs);
@@ -21,10 +37,6 @@ void JsonManager::notifyObservers() {
     // notifica tutti gli observer sulla lista observers
     for (auto* obs : observers)
         obs->onBibliotecaUpdated(bibliotecaList);
-}
-
-QString JsonManager::getFilePath() const {
-    return filePath;
 }
 
 // Legge il file e lo traduce in QJsonArray e lo scrive su jsonArray
@@ -63,6 +75,14 @@ bool JsonManager::writeJsonArray(QJsonArray& in) const {
 }
 
 QList<Biblioteca*> JsonManager::loadBibliotecaListFromJson() {
+    if (!bibliotecaList.isEmpty()) {
+        qDebug() << "Cleaning previous data before loading new";
+        for (Biblioteca* media : bibliotecaList) {
+            delete media;  // Pulisci i dati precedenti
+        }
+        bibliotecaList.clear();
+    }
+
     QList<Biblioteca*> out;
     QJsonArray arr;
 
@@ -195,18 +215,17 @@ Biblioteca* JsonManager::loadCd(const QJsonObject& obj) const {
 
     CdData c;
     c.artista = obj.value("artista").toString();
-    c.numeroTracce = obj.value("numero_tracce").toInt();
+    c.numeroTracce = obj.value("numeroTracce").toInt();
 
     return new Cd(b.titolo.toStdString(), b.annoPubblicazione.toStdString(), b.id.toStdString(),
                            b.genere.toStdString(), b.immagine.toStdString(), b.lingua.toStdString(),
                            b.copieTotali, m.supportoTecnologico.toStdString(), m.casaDiProduzione.toStdString(),
-                           m.durata, c.artista.toStdString(), c.numeroTracce, b.copieInPrestito, a.ascoltato);
+                           m.durata, c.artista.toStdString(), c.numeroTracce, a.ascoltato, b.copieInPrestito);
 }
 
 
 //operazione di salvataggio di un oggetto Biblioteca nella lista e scrittura nel file Json
 void JsonManager::saveNewObject(Biblioteca* b) {
-    bibliotecaList.append(b);
     QJsonArray arr;
 
     if(!readJsonArray(arr)) {
@@ -258,7 +277,7 @@ void JsonManager::save(const Biblioteca* b, QJsonObject& obj) const {
 void JsonManager::save(const Multimedia* m, QJsonObject& obj) const {
     obj["supportoTecnologico"] = QString::fromStdString(m->getSupportoTecnologico());
     obj["casaDiProduzione"] = QString::fromStdString(m->getCasaDiProduzione());
-    obj["durata"] = QString::number(m->getDurata());
+    obj["durata"] = m->getDurata();
 }
 
 void JsonManager::save(const Media_cartaceo* c, QJsonObject& obj) const {
@@ -324,10 +343,14 @@ QJsonObject JsonManager::save(const Cd* cd) const {
 
 
 void JsonManager::deleteObject(Biblioteca* biblio) {
-    //
+    if (!biblio) {
+        qWarning() << "Tentativo di eliminare oggetto null";
+        return;
+    }
+
     int index = -1;
     for (int i = 0; i < bibliotecaList.size(); ++i) {
-        if(bibliotecaList[i] == biblio) {
+        if(bibliotecaList[i] == biblio) {  // Usa .data() se usi QPointer
             index = i;
             break;
         }
@@ -338,24 +361,28 @@ void JsonManager::deleteObject(Biblioteca* biblio) {
         return;
     }
 
-    // Rimuove l'elemento dalla lista e memorizzo il puntatore da deallocare
+    // Rimuove dalla lista PRIMA di deallocare
     Biblioteca* toDelete = bibliotecaList.takeAt(index);
 
-    // Lettura del QJsonArray
-    QJsonArray arr;
-    if (!readJsonArray(arr)) return;
+    if (!toDelete) {
+        qWarning() << "Oggetto già deallocato";
+        return;
+    }
 
-    // Rimozione dell'elemento dal QJsonArray
-    if (index < arr.size()) {
+    // JSON operations
+    QJsonArray arr;
+    if (readJsonArray(arr) && index < arr.size()) {
         arr.removeAt(index);
         writeJsonArray(arr);
     }
 
-    // Dealloco il puntatore e notifico gli osservatori del cambiamento
+    // Dealloca DOPO aver rimosso dalla lista
+    qDebug() << "Deleting object:" << QString::fromStdString(toDelete->getTitolo());
     delete toDelete;
+    toDelete = nullptr;
+
     notifyObservers();
 }
-
 
 
 
@@ -394,6 +421,65 @@ void JsonManager::updateObject(Biblioteca* biblio) {
     arr[index] = obj;
     writeJsonArray(arr);
     notifyObservers();
+}
+
+
+void JsonManager::loadFromFile(const QString& fileName) {
+    bibliotecaList.clear();
+
+    QFile sourceFile(fileName);
+    sourceFile.open(QIODevice::ReadOnly);
+    QByteArray data = sourceFile.readAll();
+    sourceFile.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    QJsonArray arr = doc.array();
+
+    for (const auto& val : arr) {
+        QJsonObject obj = val.toObject();
+        QString cls = obj["Classe"].toString();
+        Biblioteca* b = nullptr;
+
+        if (cls == "Cd") {
+            b = loadCd(obj);
+        } else if (cls == "Libro") {
+            b = loadLibri(obj);
+        } else if (cls == "Media_video") {
+            b = loadMediaVideo(obj);
+        } else if (cls == "Periodico") {
+            b = loadPeriodici(obj);
+        }
+
+        if (b) {
+            bibliotecaList.append(b);
+        }
+    }
+
+    // Salva nel file di lavoro principale
+    QFile targetFile(filePath);
+    targetFile.open(QIODevice::WriteOnly);
+    targetFile.write(data);
+    targetFile.close();
+
+    notifyObservers();
+}
+
+
+
+void JsonManager::saveToFile(const QString& fileName) {
+    QJsonArray arr;
+    for (const auto b : bibliotecaList) {
+        if (auto p = dynamic_cast<const Media_video*>(b)) arr.append(save(p));
+        else if (auto p = dynamic_cast<const Libro*>(b)) arr.append(save(p));
+        else if (auto p = dynamic_cast<const Periodico*>(b)) arr.append(save(p));
+        else if (auto p = dynamic_cast<const Cd*>(b)) arr.append(save(p));
+    }
+
+    QFile f(fileName);
+    f.open(QIODevice::WriteOnly);
+    QJsonDocument doc(arr);
+    f.write(doc.toJson());
+    f.close();
 }
 
 void JsonManager::savePrenota(Biblioteca* biblio) {
@@ -435,7 +521,6 @@ void JsonManager::savePrenota(Biblioteca* biblio) {
 void JsonManager::saveRestituisci(Biblioteca* biblio) {
     if (!biblio) return;
 
-    // Prima modifica l'oggetto in memoria
     try {
         biblio->restituisci();
     } catch (const std::runtime_error& e) {
@@ -443,15 +528,6 @@ void JsonManager::saveRestituisci(Biblioteca* biblio) {
         return;
     }
 
-    if (auto video = dynamic_cast<Media_video*>(biblio)) {
-        video->setGuardato(true);  // Quando restituisci un video, lo hai guardato
-    } else if (auto cartaceo = dynamic_cast<Media_cartaceo*>(biblio)) {
-        cartaceo->setLetto(true);
-    } else if (auto audio = dynamic_cast<Media_audio*>(biblio)) {
-        audio->setAscoltato(true);
-    }
-
-    // Trova l'indice nella lista
     int index = -1;
     for (int i = 0; i < bibliotecaList.size(); ++i) {
         if (bibliotecaList[i] == biblio) {
@@ -465,30 +541,33 @@ void JsonManager::saveRestituisci(Biblioteca* biblio) {
         return;
     }
 
-    // Leggi e aggiorna il JSON
     QJsonArray arr;
     if (!readJsonArray(arr)) return;
 
     if (index < arr.size()) {
         QJsonObject obj = arr[index].toObject();
+
         obj["disponibile"] = biblio->getDisponibilita();
         obj["copieInPrestito"] = biblio->getCopieInPrestito();
-        arr[index] = obj;
 
         if (auto video = dynamic_cast<Media_video*>(biblio)) {
-            obj["guardato"] = video->getGuardato();
+            obj["guardato"] = true;
+            video->setGuardato(true);
         } else if (auto cartaceo = dynamic_cast<Media_cartaceo*>(biblio)) {
-            obj["letto"] = cartaceo->getLetto();
+            obj["letto"] = true;
+            cartaceo->setLetto(true);
         } else if (auto audio = dynamic_cast<Media_audio*>(biblio)) {
-            obj["ascoltato"] = audio->getAscoltato();
+            obj["ascoltato"] = true;
+            audio->setAscoltato(true);
         }
+
+        arr[index] = obj;
 
         if (writeJsonArray(arr)) {
             notifyObservers();
         }
     }
 }
-
 void JsonManager::saveGuardato(Media_video* video) {
     int occToSkip = 0;
     for (auto* it : bibliotecaList) {
@@ -523,8 +602,8 @@ void JsonManager::saveLetto(Media_cartaceo* cartaceo) {
     QJsonArray updated; int occ = 0; bool done = false;
     for (const auto& v : arr) {
         auto o = v.toObject();
-        if (!done && o.value("Titolo").toString() == QString::fromStdString(cartaceo->getTitolo())) {
-            if (occ == occToSkip) { o["Letto"] = cartaceo->getLetto(); done = true; }
+        if (!done && o.value("titolo").toString() == QString::fromStdString(cartaceo->getTitolo())) {
+            if (occ == occToSkip) { o["letto"] = cartaceo->getLetto(); done = true; }
             ++occ;
         }
         updated.append(o);
@@ -545,7 +624,7 @@ void JsonManager::saveAscoltato(Media_audio* audio) {
     for (const auto& v : arr) {
         auto o = v.toObject();
         if (!done && o.value("titolo").toString() == QString::fromStdString(audio->getTitolo())) {
-            if (occ == occToSkip) { o["guardato"] = audio->getAscoltato(); done = true; }
+            if (occ == occToSkip) { o["ascoltato"] = audio->getAscoltato(); done = true; }
             ++occ;
         }
         updated.append(o);

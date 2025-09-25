@@ -25,7 +25,6 @@ class MediaEditManager : public QWidget
 public:
     explicit MediaEditManager(QWidget* parent = nullptr);
 
-    // Metodi per gestire creazione e modifica
     void enterCreateMode();
     void enterEditMode(Biblioteca* media);
 
@@ -69,7 +68,6 @@ private:
     void updateTitle();
     void resetToCleanState();
 
-    // Metodi helper per gestire i cambiamenti non salvati
     bool confirmDiscardChanges();
 
 signals:

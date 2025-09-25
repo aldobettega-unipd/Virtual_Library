@@ -2,6 +2,7 @@ QT += core widgets
 
 TARGET = Biblioteca
 TEMPLATE = app
+CONFIG+=debug
 
 # Configurazione delle directory di output
 DESTDIR = $$PWD                    # Eseguibile nella root del progetto
@@ -30,10 +31,8 @@ HEADERS += \
     src/gui/SearchWidget.h \
     src/gui/UserDetailPage.h \
     src/gui/UserPage.h \
-    src/model/media/audiolibro.h \
     src/model/media/biblioteca.h \
     src/model/media/cd.h \
-    src/model/media/fumetto.h \
     src/model/media/libro.h \
     src/model/media/media_audio.h \
     src/model/media/media_cartaceo.h \
@@ -66,10 +65,8 @@ SOURCES += \
     src/gui/SearchWidget.cpp \
     src/gui/UserDetailPage.cpp \
     src/gui/UserPage.cpp \
-    src/model/media/audiolibro.cpp \
     src/model/media/biblioteca.cpp \
     src/model/media/cd.cpp \
-    src/model/media/fumetto.cpp \
     src/model/media/libro.cpp \
     src/model/media/media_audio.cpp \
     src/model/media/media_cartaceo.cpp \

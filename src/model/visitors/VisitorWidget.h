@@ -31,7 +31,6 @@ public:
     void visit(Periodico* periodico) override;
     void visit(Libro* libro) override;
     void visit(Cd* cd) override;
-    //void visit(Audiolibro* audiolibro) override;
 };
 
 #endif // VISITORWIDGET_H

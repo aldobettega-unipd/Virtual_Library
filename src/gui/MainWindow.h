@@ -18,11 +18,11 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(JsonManager* jsonManager, QWidget *parent = nullptr);
+    ~MainWindow();
 
 private:
     void setupConnections();
     void loadInitialData();
-    void reconnectJsonManagerSignals();
 
     QStackedWidget *stack;
     LoginPage *loginPage;
@@ -42,10 +42,8 @@ private slots:
     void showCreateMediaPage();
     void showEditMediaPage(Biblioteca* media);
 
-    void handlePrenota(Biblioteca* media);
-    void handleRestituisci(Biblioteca* media);
-    void handleSaveData(const QString& fileName);
-    void handleLoadData(const QString& fileName);
+    void gestisciPrenota(Biblioteca* media);
+    void gestisciRestituisci(Biblioteca* media);
 };
 
 #endif // MAINWINDOW_H

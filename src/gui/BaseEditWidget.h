@@ -28,7 +28,7 @@ public:
     explicit BaseEditWidget(QWidget* parent = nullptr);
     virtual ~BaseEditWidget() = default;
 
-    // Metodi pubblici per interagire con il widget
+    // Metodi virtuali puri
     virtual void setMedia(Biblioteca* media) = 0;
     virtual Biblioteca* createMedia() = 0;
     virtual void updateMedia() = 0;

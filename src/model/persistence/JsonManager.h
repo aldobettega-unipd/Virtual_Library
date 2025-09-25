@@ -29,6 +29,7 @@ class JsonManager : public QObject
     Q_OBJECT
 public:
     explicit JsonManager(const QString& filePath, QObject* parent = nullptr);
+    ~JsonManager();
     QList<Biblioteca*> loadBibliotecaListFromJson();
     void addObserver(JsonObserver* obs);
 
@@ -115,6 +116,9 @@ public slots:
     void saveNewObject(Biblioteca* obj);
     void updateObject(Biblioteca* obj);
     void deleteObject(Biblioteca* obj);
+    void loadFromFile(const QString& fileName);
+    void saveToFile(const QString& fileName);
+
 
     void savePrenota(Biblioteca* biblio);
     void saveRestituisci(Biblioteca* biblio);

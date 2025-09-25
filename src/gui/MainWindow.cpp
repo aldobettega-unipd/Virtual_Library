@@ -45,6 +45,12 @@ MainWindow::MainWindow(JsonManager* jsonManager, QWidget *parent) : QMainWindow(
     resize(1200, 1000);
 }
 
+MainWindow::~MainWindow() {
+    if (jsonManager) {
+        delete jsonManager;
+    }
+}
+
 void MainWindow::setupConnections() {
     // Connessioni login
     connect(loginPage, &LoginPage::requestShowUserArea, this, &MainWindow::showUserPage);
@@ -63,16 +69,16 @@ void MainWindow::setupConnections() {
     connect(adminDetailPage, &BaseDetailPage::backRequested, this, &MainWindow::showAdminPage);
 
     // Operazioni di PRENOTA e RESTITUISCI
-    connect(adminDetailPage, &BaseDetailPage::prenotaRequested, this, &MainWindow::handlePrenota);
-    connect(userDetailPage, &BaseDetailPage::prenotaRequested, this, &MainWindow::handlePrenota);
+    connect(adminDetailPage, &BaseDetailPage::prenotaRequested, this, &MainWindow::gestisciPrenota);
+    connect(userDetailPage, &BaseDetailPage::prenotaRequested, this, &MainWindow::gestisciPrenota);
 
-    connect(adminDetailPage, &BaseDetailPage::restituisciRequested, this, &MainWindow::handleRestituisci);
-    connect(userDetailPage, &BaseDetailPage::restituisciRequested, this, &MainWindow::handleRestituisci);
+    connect(adminDetailPage, &BaseDetailPage::restituisciRequested, this, &MainWindow::gestisciRestituisci);
+    connect(userDetailPage, &BaseDetailPage::restituisciRequested, this, &MainWindow::gestisciRestituisci);
 
     // Operazione manuale di salvataggio biblioteca
-    connect(adminPage, &AdminPage::saveDataRequested, this, &MainWindow::handleSaveData);
+    connect(adminPage, &AdminPage::saveDataRequested, jsonManager, &JsonManager::saveToFile);
     // Operazione manuale di caricamento biblioteca
-    connect(adminPage, &AdminPage::loadDataRequested, this, &MainWindow::handleLoadData);
+    connect(adminPage, &AdminPage::loadDataRequested, jsonManager, &JsonManager::loadFromFile);
     // Apertura CreatePage dopo pressione di AGGIUNGI
     connect(adminPage, &AdminPage::createNewObject, this, &MainWindow::showCreateMediaPage);
     // Apertura EditPage dopo pressione di EDIT
@@ -122,7 +128,7 @@ void MainWindow::showAdminDetailPage(Biblioteca* media)
     stack->setCurrentWidget(adminDetailPage);
 }
 
-void MainWindow::handlePrenota(Biblioteca* media) {
+void MainWindow::gestisciPrenota(Biblioteca* media) {
     try {
         if (media->getCopieInPrestito() < media->getCopieTotali()) {
             jsonManager->savePrenota(media);
@@ -140,7 +146,7 @@ void MainWindow::handlePrenota(Biblioteca* media) {
     }
 }
 
-void MainWindow::handleRestituisci(Biblioteca* media) {
+void MainWindow::gestisciRestituisci(Biblioteca* media) {
     try {
         if (media->getCopieInPrestito() > 0) {
             jsonManager->saveRestituisci(media);
@@ -160,26 +166,11 @@ void MainWindow::handleRestituisci(Biblioteca* media) {
 
 void MainWindow::loadInitialData()
 {
-    qDebug() << "Starting loadInitialData";
-    try {
-        QList<Biblioteca*> initialData = jsonManager->loadBibliotecaListFromJson();
+    QList<Biblioteca*> initialData = jsonManager->loadBibliotecaListFromJson();
 
-        if (initialData.isEmpty()) {
-            qWarning() << "Nessun dato caricato o file vuoto";
-        } else {
-            qDebug() << "Caricati" << initialData.size() << "elementi";
-        }
+    userPage->onBibliotecaUpdated(initialData);
+    adminPage->onBibliotecaUpdated(initialData);
 
-        // Passa i dati alle pagine
-        userPage->onBibliotecaUpdated(initialData);
-        adminPage->onBibliotecaUpdated(initialData);
-
-
-
-    } catch (const std::exception& e) {
-        qCritical() << "Error loading data:" << e.what();
-        QMessageBox::warning(this, "Error", QString("Failed to load data: %1").arg(e.what()));
-    }
 }
 
 void MainWindow::showCreateMediaPage() {
@@ -193,106 +184,5 @@ void MainWindow::showEditMediaPage(Biblioteca* media) {
         stack->setCurrentWidget(mediaEditManager);
     }
 }
-
-void MainWindow::handleLoadData(const QString& fileName) {
-    qDebug() << "MainWindow: Loading and overwriting current file with:" << fileName;
-
-    try {
-        // Testa che il file sia valido
-        QFile sourceFile(fileName);
-        if (!sourceFile.exists()) {
-            QMessageBox::warning(this, "Errore", "File non trovato: " + fileName);
-            return;
-        }
-
-        // Testa il formato JSON
-        if (!sourceFile.open(QIODevice::ReadOnly)) {
-            QMessageBox::warning(this, "Errore", "Impossibile aprire il file: " + fileName);
-            return;
-        }
-
-        QByteArray testData = sourceFile.readAll();
-        sourceFile.close();
-
-        QJsonDocument testDoc = QJsonDocument::fromJson(testData);
-        if (!testDoc.isArray()) {
-            QMessageBox::warning(this, "Errore", "Formato JSON non valido");
-            return;
-        }
-
-        // Se arriviamo qui, il file è valido
-        // Ottieni il path del file corrente del JsonManager
-        QString currentFilePath = "./data/biblioteca.json"; // O jsonManager->getCurrentFilePath() se hai implementato il metodo
-
-        // Copia il contenuto del file scelto nel file corrente
-        QFile currentFile(currentFilePath);
-        if (!currentFile.open(QIODevice::WriteOnly)) {
-            QMessageBox::critical(this, "Errore", "Impossibile scrivere nel file corrente");
-            return;
-        }
-
-        currentFile.write(testData);
-        currentFile.close();
-
-        // Ricarica i dati - JsonManager leggerà automaticamente dal file aggiornato
-        QList<Biblioteca*> loadedData = jsonManager->loadBibliotecaListFromJson();
-
-        // Aggiorna le interfacce
-        adminPage->onBibliotecaUpdated(loadedData);
-        userPage->onBibliotecaUpdated(loadedData);
-
-        QMessageBox::information(this, "Successo",
-                                 QString("Caricati %1 elementi da: %2\nFile di lavoro aggiornato.")
-                                     .arg(loadedData.size()).arg(fileName));
-
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, "Errore",
-                              QString("Errore durante il caricamento: %1").arg(e.what()));
-    }
-}
-
-void MainWindow::handleSaveData(const QString& fileName) {
-    qDebug() << "MainWindow: Saving current data to:" << fileName;
-
-    try {
-        // Leggi i dati attuali
-        QList<Biblioteca*> currentData = jsonManager->loadBibliotecaListFromJson();
-
-        if (currentData.isEmpty()) {
-            QMessageBox::warning(this, "Attenzione", "Nessun dato da salvare.");
-            return;
-        }
-
-        // Ottieni il contenuto del file corrente
-        QString currentFilePath = "./data/biblioteca.json";
-        QFile currentFile(currentFilePath);
-
-        if (!currentFile.open(QIODevice::ReadOnly)) {
-            QMessageBox::critical(this, "Errore", "Impossibile leggere il file corrente");
-            return;
-        }
-
-        QByteArray currentData_bytes = currentFile.readAll();
-        currentFile.close();
-
-        // Copia nel file di destinazione
-        QFile targetFile(fileName);
-        if (!targetFile.open(QIODevice::WriteOnly)) {
-            QMessageBox::critical(this, "Errore", "Impossibile creare il file: " + fileName);
-            return;
-        }
-
-        targetFile.write(currentData_bytes);
-        targetFile.close();
-
-        QMessageBox::information(this, "Successo",
-                                 QString("Dati salvati in: %1").arg(fileName));
-
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, "Errore",
-                              QString("Errore durante il salvataggio: %1").arg(e.what()));
-    }
-}
-
 
 

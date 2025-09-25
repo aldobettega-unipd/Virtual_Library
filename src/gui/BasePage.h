@@ -14,7 +14,11 @@ class BasePage : public QWidget, public JsonObserver
     Q_OBJECT;
 public:
     BasePage(QWidget* parent = nullptr);
+    virtual ~BasePage() = default;
     void onBibliotecaUpdated(const QList<Biblioteca*>& data) override;
+
+private:
+    void setupMenuBar();
 
 signals:
     void logoutRequested();
@@ -36,10 +40,6 @@ protected:
     //metodi condivisi
     void setupCommonUI();
     void setupCommonConnections();
-
-
-private:
-    void setupMenuBar();
 };
 
 #endif // BASEPAGE_H
