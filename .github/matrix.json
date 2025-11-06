@@ -1,0 +1,12 @@
+{
+  "file_A": {
+    "autore": "username-autore-A",
+    "revisore": "username-revisore-A",
+    "validatore": "username-validatore-A"
+  },
+  "file_B": {
+    "autore": "username-autore-B",
+    "revisore": "username-revisore-B",
+    "validatore": "username-validatore-B"
+  }
+}
